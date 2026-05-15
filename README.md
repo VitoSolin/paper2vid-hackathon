@@ -19,6 +19,7 @@ flowchart LR
 | Ekstraksi (problem, metode, …) | ✅ Skill agent | `paper-summary.json` |
 | Naskah dialog 2 orang | ✅ Skill agent | `dialog-script.json` |
 | Render video | ✅ CLI | `output/<id>.mp4` |
+| Upload YouTube | ✅ CLI + skill | `youtube-publish.json`, URL video |
 
 ### Layout video (seperti referensi Shorts)
 
@@ -61,6 +62,10 @@ openclaw agent --message "Buat dialog dua orang untuk paper 2301.07041"
 cp examples/dialog-script.1706.03762.json data/1706.03762/dialog-script.json
 python scripts/video/render.py data/1706.03762
 # → output/1706.03762.mp4 (1080×1920)
+
+# YouTube (setup OAuth sekali: docs/YOUTUBE.md)
+python scripts/youtube/auth.py
+python scripts/youtube/upload.py data/1706.03762
 ```
 
 ## Push ke GitHub
@@ -83,6 +88,7 @@ gh repo create paper2video --public --source=. --push
 | `paper-extract` | Ekstrak problem, metode, temuan, pentingnya, batasan |
 | `dialog-script` | Naskah dialog Host + Ahli |
 | `video-render` | Video berlapis + TTS |
+| `youtube-publish` | Upload ke YouTube (OAuth) |
 
 File prompt workspace: `AGENTS.md`, `SOUL.md`, `TOOLS.md`.
 

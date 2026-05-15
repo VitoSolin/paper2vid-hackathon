@@ -19,6 +19,11 @@ paper.txt
 fetch.json
 extract.json
 video-render.json
+youtube-publish.json
+
+# YouTube OAuth (rahasia)
+config/youtube/client_secret.json
+config/youtube/token.json
 
 # Output video
 output/*

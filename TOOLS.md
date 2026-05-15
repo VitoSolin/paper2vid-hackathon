@@ -8,6 +8,8 @@
 | `python scripts/extract_pdf_text.py data/<id>` | PDF → `paper.txt` |
 | `python scripts/run_pipeline.py <id>` | Fetch + extract sekaligus |
 | `python scripts/video/render.py data/<id>` | Render video berlapis + TTS |
+| `python scripts/youtube/auth.py` | Login OAuth YouTube (sekali) |
+| `python scripts/youtube/upload.py data/<id>` | Upload ke YouTube |
 
 ## OpenClaw
 
@@ -32,6 +34,8 @@ data/<arxiv_id>/
 ```
 
 Output video: `output/<arxiv_id>.mp4`
+
+Setelah upload: `data/<arxiv_id>/youtube-publish.json` (`url`, `video_id`). Setup: `docs/YOUTUBE.md`.
 
 ## Layer video
 

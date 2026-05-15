@@ -16,7 +16,8 @@ arXiv → ringkasan paper → dialog Pak Nam ↔ Zaba → TTS per giliran → vi
 | 4 | Dialog Pak Nam & Zaba | ✅ Mudah / selesai | Skill `dialog-script`; speaker: `paknam` / `zaba` |
 | 5 | TTS terpisah per pembicara | ✅ Selesai | `data/<id>/audio/turn_XX_paknam.mp3` dll. |
 | 6 | Video maker custom 9:16 | ✅ Dasar selesai | `scripts/video/render.py` + ffmpeg |
-| 7 | Polish video | 🔜 Opsional | animasi mulut, timing subtitle kata-per-kata, musik |
+| 7 | Upload YouTube | ✅ Selesai | `scripts/youtube/upload.py` + skill `youtube-publish` |
+| 8 | Polish video | 🔜 Opsional | animasi mulut, timing subtitle kata-per-kata, musik |
 
 ## Layer video (9:16 = 1080×1920)
 
@@ -62,6 +63,10 @@ openclaw agent --message "Buat dialog Pak Nam dan Zaba untuk paper <ARXIV_ID>"
 
 # 5–6: TTS + video (otomatis)
 python scripts/video/render.py data/<ARXIV_ID> --config config/characters.paknam-zaba.json
+
+# 7: YouTube (setelah OAuth — docs/YOUTUBE.md)
+python scripts/youtube/auth.py
+python scripts/youtube/upload.py data/<ARXIV_ID>
 ```
 
 Aset: folder `personA/` (background + sprite per ekspresi).

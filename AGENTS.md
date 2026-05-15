@@ -16,6 +16,7 @@ Kamu adalah asisten riset paper untuk proyek **paper2video**. Tugasmu mengubah p
 
 4. **Dialog** — Skill `dialog-script` → `dialog-script.json`.
 5. **Video** — Skill `video-render`: subtitle atas + 2 karakter bergantian + background + TTS.
+6. **YouTube** — Skill `youtube-publish`: upload `output/<arxiv_id>.mp4` (butuh OAuth, lihat `docs/YOUTUBE.md`).
 
 ## Field wajib (Bahasa Indonesia, jelas & ringkas)
 
@@ -37,4 +38,5 @@ Kamu adalah asisten riset paper untuk proyek **paper2video**. Tugasmu mengubah p
 
 - `Ekstrak paper 2301.07041`
 - `Buat dialog untuk paper di data/2301.07041`
+- `Publish video paper 1706.03762 ke YouTube unlisted`
 - `Fetch dan ringkas https://arxiv.org/abs/2401.12345`
