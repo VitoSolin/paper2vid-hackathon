@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -31,10 +32,17 @@ from characters import (  # noqa: E402
     resolve_background,
     sprite_for_turn,
 )
-from composite import render_frame  # noqa: E402
+from composite import (  # noqa: E402
+    composite_wiggle_frame,
+    prepare_character_sprite,
+    render_base_with_subtitle,
+    render_frame,
+)
 from generate_assets import ensure_defaults  # noqa: E402
 from subtitles import chunk_subtitle  # noqa: E402
 from tts import synthesize_sync  # noqa: E402
+from ffmpeg_wiggle import make_segment_wiggle_ffmpeg  # noqa: E402
+from wiggle import wiggle_offsets  # noqa: E402
 
 
 def load_json(path: Path) -> dict:
@@ -68,6 +76,7 @@ def make_segment(
     fps: int = 30,
     audio_start: float = 0.0,
 ) -> None:
+    """Satu frame statis (legacy)."""
     cmd = [
         "ffmpeg",
         "-y",
@@ -87,6 +96,48 @@ def make_segment(
         "yuv420p",
         "-r",
         str(fps),
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-t",
+        f"{duration:.3f}",
+        "-shortest",
+        str(segment_path),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+
+
+def make_segment_animated(
+    frames_dir: Path,
+    audio_path: Path,
+    duration: float,
+    segment_path: Path,
+    input_fps: int = 12,
+    output_fps: int = 30,
+    audio_start: float = 0.0,
+) -> None:
+    """Urutan frame PNG + audio → clip (wiggle)."""
+    pattern = str(frames_dir / "frame_%04d.png")
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-framerate",
+        str(input_fps),
+        "-i",
+        pattern,
+        "-ss",
+        f"{audio_start:.3f}",
+        "-i",
+        str(audio_path),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        str(output_fps),
         "-c:a",
         "aac",
         "-b:a",
@@ -198,20 +249,99 @@ def render_dialog(
                 bg_img = legacy_bg
                 speaker = key
 
+            wiggle_cfg = cfg.get("characters", {}).get("wiggle", {})
+            wiggle_on = wiggle_cfg.get("enabled", False)
+            wiggle_method = wiggle_cfg.get("method", "ffmpeg")
+            cast_entry = cfg.get("cast", {}).get(speaker, {}) if cast_mode else {}
+            wiggle_phase = float(
+                cast_entry.get("layout", {}).get("wiggle_phase", 0.0)
+            )
+            out_fps = cfg.get("fps", 30)
+            wiggle_fps = int(wiggle_cfg.get("fps", 12))
+
             for j, sub_text in enumerate(sub_chunks):
-                frame = render_frame(bg_img, sprites, sub_text, speaker, cfg)
-                frame_path = tmp_path / f"frame_{i:02d}_{j:02d}.png"
-                frame.save(frame_path)
                 seg_path = tmp_path / f"seg_{i:02d}_{j:02d}.mp4"
-                make_segment(
-                    frame_path,
-                    audio_file,
-                    chunk_dur,
-                    seg_path,
-                    fps=cfg.get("fps", 30),
-                    audio_start=j * chunk_dur,
-                )
+                audio_start = j * chunk_dur
+
+                if wiggle_on and wiggle_method == "ffmpeg":
+                    side = (
+                        cast_entry.get("side")
+                        or ("left" if speaker in ("A", "paknam") else "right")
+                    )
+                    base_rgba = render_base_with_subtitle(bg_img, sub_text, cfg)
+                    prepared = prepare_character_sprite(
+                        sprites[speaker], side, cfg, cast_entry
+                    )
+                    base_path = tmp_path / f"base_{i:02d}_{j:02d}.jpg"
+                    char_path = tmp_path / f"char_{i:02d}_{j:02d}.png"
+                    base_rgba.convert("RGB").save(
+                        base_path, quality=92, optimize=True
+                    )
+                    prepared.image.save(char_path, optimize=True)
+                    make_segment_wiggle_ffmpeg(
+                        base_path,
+                        char_path,
+                        audio_file,
+                        chunk_dur,
+                        seg_path,
+                        wiggle_cfg,
+                        wiggle_phase,
+                        prepared.base_x,
+                        prepared.base_y,
+                        fps=out_fps,
+                        audio_start=audio_start,
+                    )
+                elif wiggle_on:
+                    side = (
+                        cast_entry.get("side")
+                        or ("left" if speaker in ("A", "paknam") else "right")
+                    )
+                    base_rgba = render_base_with_subtitle(bg_img, sub_text, cfg)
+                    prepared = prepare_character_sprite(
+                        sprites[speaker], side, cfg, cast_entry
+                    )
+                    anim_fps = wiggle_fps
+                    n_frames = max(2, int(math.ceil(chunk_dur * anim_fps)))
+                    frames_dir = tmp_path / f"frames_{i:02d}_{j:02d}"
+                    frames_dir.mkdir(exist_ok=True)
+                    for fi in range(n_frames):
+                        t = fi / anim_fps
+                        wig = wiggle_offsets(t, wiggle_cfg, phase=wiggle_phase)
+                        frame = composite_wiggle_frame(base_rgba, prepared, wig)
+                        frame.save(
+                            frames_dir / f"frame_{fi:04d}.png",
+                            optimize=True,
+                        )
+                    print(
+                        f"  wiggle seg {i:02d}-{j:02d}: {n_frames} frames @ {anim_fps}fps",
+                        flush=True,
+                    )
+                    make_segment_animated(
+                        frames_dir,
+                        audio_file,
+                        chunk_dur,
+                        seg_path,
+                        input_fps=anim_fps,
+                        output_fps=out_fps,
+                        audio_start=audio_start,
+                    )
+                else:
+                    frame = render_frame(
+                        bg_img, sprites, sub_text, speaker, cfg
+                    )
+                    frame_path = tmp_path / f"frame_{i:02d}_{j:02d}.png"
+                    frame.save(frame_path)
+                    make_segment(
+                        frame_path,
+                        audio_file,
+                        chunk_dur,
+                        seg_path,
+                        fps=out_fps,
+                        audio_start=audio_start,
+                    )
                 segments.append(seg_path)
+
+        print(f"Concat {len(segments)} segments…", flush=True)
 
         concat_segments(segments, out_mp4)
 

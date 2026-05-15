@@ -14,7 +14,7 @@ Voice dari link Voice Library harus bisa dipakai API:
 
 | Karakter | Voice ID | Link |
 |----------|----------|------|
-| Pak Nam | `TIXYCOMzK2Vw9OZovSLs` | [Voice Library](https://elevenlabs.io/app/voice-library?voiceId=TIXYCOMzK2Vw9OZovSLs) |
+| Pak Nam | `aK834gEOxQEtviMPgurT` | [Voice Library](https://elevenlabs.io/app/voice-library?voiceId=aK834gEOxQEtviMPgurT) |
 | Zaba | `JaUVfDrFcfwGIsv8X2kN` | [Voice Library](https://elevenlabs.io/app/voice-library?voiceId=JaUVfDrFcfwGIsv8X2kN) |
 
 Di halaman masing-masing voice, klik **Add to My Voices** (jika belum ada di akun Anda). Tanpa ini API bisa error 404.

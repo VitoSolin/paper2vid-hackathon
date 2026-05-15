@@ -52,7 +52,7 @@ Layout & font: `config/video.default.json`
 ## TTS
 
 **ElevenLabs (disarankan):** set `ELEVENLABS_API_KEY` + `TTS_PROVIDER=elevenlabs` di `.env`.  
-Voice: Pak Nam `TIXYCOMzK2Vw9OZovSLs`, Zaba `JaUVfDrFcfwGIsv8X2kN` — lihat `docs/ELEVENLABS.md`.
+Voice: Pak Nam `aK834gEOxQEtviMPgurT`, Zaba `JaUVfDrFcfwGIsv8X2kN` — lihat `docs/ELEVENLABS.md`.
 
 **edge-tts (gratis):** `TTS_PROVIDER=edge`
 

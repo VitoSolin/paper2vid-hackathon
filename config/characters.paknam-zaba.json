@@ -16,7 +16,8 @@
         "position_x_ratio": 1.0,
         "offset_x": 56,
         "offset_y": 48,
-        "allow_side_crop": true
+        "allow_side_crop": true,
+        "wiggle_phase": 0.0
       },
       "background": "personA/bgpaknam.webp",
       "sprites": {
@@ -42,7 +43,8 @@
         "position_x_ratio": 0.0,
         "offset_x": -56,
         "offset_y": 48,
-        "allow_side_crop": true
+        "allow_side_crop": true,
+        "wiggle_phase": 2.2
       },
       "background": "personA/bgzaba.webp",
       "sprites": {
@@ -83,13 +85,22 @@
     "active_scale": 1.0,
     "solo_speaker": true,
     "margin_bottom": 40,
-    "margin_x_ratio": 0.06
+    "margin_x_ratio": 0.06,
+    "wiggle": {
+      "enabled": true,
+      "method": "ffmpeg",
+      "fps": 12,
+      "amplitude_x": 6,
+      "amplitude_y": 5,
+      "amplitude_rot": 0.8,
+      "frequency_hz": 1.0
+    }
   },
   "tts": {
     "provider": "elevenlabs",
     "model_id": "eleven_multilingual_v2",
     "paknam": {
-      "voice_id": "TIXYCOMzK2Vw9OZovSLs",
+      "voice_id": "aK834gEOxQEtviMPgurT",
       "stability": 0.45,
       "similarity_boost": 0.8,
       "style": 0.35

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -12,8 +13,10 @@ from subtitles import wrap_subtitle_lines  # noqa: E402
 
 try:
     _RESAMPLE = Image.Resampling.LANCZOS
+    _ROTATE_RESAMPLE = Image.Resampling.BICUBIC
 except AttributeError:
     _RESAMPLE = Image.LANCZOS
+    _ROTATE_RESAMPLE = Image.BICUBIC
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FONT = ROOT / "assets" / "fonts" / "LilitaOne-Regular.ttf"
@@ -48,6 +51,17 @@ def _cover_resize(img: Image.Image, w: int, h: int) -> Image.Image:
     return ImageOps.fit(img.convert("RGBA"), (w, h), method=_RESAMPLE)
 
 
+@dataclass
+class PreparedSprite:
+    """Sprite sudah di-resize; posisi dasar sebelum wiggle."""
+
+    image: Image.Image
+    base_x: float
+    base_y: float
+    width: int
+    height: int
+
+
 def _trim_transparent(sprite: Image.Image) -> Image.Image:
     """Potong area transparan agar anchor kiri/kanan mengikuti tubuh karakter."""
     bbox = sprite.getbbox()
@@ -56,15 +70,13 @@ def _trim_transparent(sprite: Image.Image) -> Image.Image:
     return sprite
 
 
-def _place_character(
-    base: Image.Image,
+def prepare_character_sprite(
     sprite: Image.Image,
     side: str,
-    active: bool,
     cfg: dict[str, Any],
     cast_entry: dict[str, Any] | None = None,
-) -> None:
-    w, h = base.size
+) -> PreparedSprite:
+    w, h = cfg.get("width", 1080), cfg.get("height", 1920)
     entry = cast_entry or {}
     ch = cfg.get("characters", {})
     layout = entry.get("layout", {})
@@ -76,7 +88,6 @@ def _place_character(
 
     if layout.get("trim_alpha", True):
         sprite = _trim_transparent(sprite)
-
     if entry.get("mirror", False):
         sprite = ImageOps.mirror(sprite)
 
@@ -89,7 +100,6 @@ def _place_character(
     offset_x = layout.get("offset_x", 0)
     visible_ratio = layout.get("visible_body_ratio")
     if visible_ratio is not None:
-        # Bagian bawah sprite boleh terpotong; ~70% tubuh dari atas terlihat
         y = h - int(target_h * float(visible_ratio)) + offset_y
     else:
         y = h - target_h - margin_bottom + offset_y
@@ -102,7 +112,6 @@ def _place_character(
         px = int(w * layout["position_x_ratio"])
         anchor = layout.get("anchor", "center")
         if anchor == "left":
-            # tepi kiri sprite di px (hindari ilusi ke kanan karena padding PNG)
             x = px + offset_x
         elif anchor == "right":
             x = px - target_w + offset_x
@@ -119,7 +128,74 @@ def _place_character(
         x = max(0, min(x, w - target_w))
     if visible_ratio is None:
         y = max(0, min(y, h - target_h))
-    base.paste(resized, (x, y), resized)
+
+    return PreparedSprite(resized, x, y, target_w, target_h)
+
+
+def paste_prepared_sprite(
+    base: Image.Image,
+    prepared: PreparedSprite,
+    wiggle: tuple[float, float, float] | None = None,
+) -> None:
+    resized = prepared.image
+    x, y = prepared.base_x, prepared.base_y
+    target_w, target_h = prepared.width, prepared.height
+
+    if wiggle:
+        dx, dy, rot = wiggle
+        x += dx
+        y += dy
+        if abs(rot) > 0.05:
+            cx = x + target_w / 2
+            cy = y + target_h / 2
+            resized = resized.rotate(
+                -rot,
+                resample=_ROTATE_RESAMPLE,
+                expand=True,
+                fillcolor=(0, 0, 0, 0),
+            )
+            x = cx - resized.width / 2
+            y = cy - resized.height / 2
+
+    base.paste(resized, (int(x), int(y)), resized)
+
+
+def _place_character(
+    base: Image.Image,
+    sprite: Image.Image,
+    side: str,
+    active: bool,
+    cfg: dict[str, Any],
+    cast_entry: dict[str, Any] | None = None,
+    wiggle: tuple[float, float, float] | None = None,
+) -> None:
+    prepared = prepare_character_sprite(sprite, side, cfg, cast_entry)
+    paste_prepared_sprite(base, prepared, wiggle)
+
+
+def render_base_with_subtitle(
+    background: Image.Image,
+    subtitle: str,
+    cfg: dict[str, Any],
+) -> Image.Image:
+    """Background + subtitle saja (cache per chunk wiggle)."""
+    w = cfg.get("width", 1080)
+    h = cfg.get("height", 1920)
+    frame = _cover_resize(background, w, h).convert("RGBA")
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    _draw_subtitle(draw, subtitle, w, h, cfg)
+    return Image.alpha_composite(frame, overlay)
+
+
+def composite_wiggle_frame(
+    base_rgba: Image.Image,
+    prepared: PreparedSprite,
+    wiggle: tuple[float, float, float],
+) -> Image.Image:
+    frame = base_rgba.copy()
+    paste_prepared_sprite(frame, prepared, wiggle)
+    return frame.convert("RGB")
 
 
 def _subtitle_y(cfg: dict[str, Any], h: int) -> int:
@@ -179,6 +255,7 @@ def render_frame(
     subtitle: str,
     active_speaker: str | None,
     cfg: dict[str, Any],
+    wiggle: tuple[float, float, float] | None = None,
 ) -> Image.Image:
     """sprites: {speaker_id: Image} — mis. paknam, zaba."""
     w = cfg.get("width", 1080)
@@ -194,7 +271,10 @@ def render_frame(
         if not side:
             side = "left" if sid in ("A", "paknam") else "right"
         entry = cast.get(sid, {})
-        _place_character(frame, sprite, side, True, cfg, cast_entry=entry)
+        wig = wiggle if active_speaker == sid else None
+        _place_character(
+            frame, sprite, side, True, cfg, cast_entry=entry, wiggle=wig
+        )
 
     overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
