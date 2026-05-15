@@ -1,0 +1,31 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "format": "vertical_short",
+  "layers": {
+    "background": { "z": 0, "fit": "cover" },
+    "characters": { "z": 1, "layout": "bottom_split" },
+    "subtitle": { "z": 2, "position": "top", "margin_top": 72 }
+  },
+  "subtitle": {
+    "font_size": 52,
+    "max_width_ratio": 0.9,
+    "uppercase": true,
+    "fill": "#FFFFFF",
+    "stroke": "#000000",
+    "stroke_width": 5
+  },
+  "characters": {
+    "height_ratio": 0.42,
+    "active_scale": 1.0,
+    "inactive_scale": 0.88,
+    "inactive_opacity": 0.55,
+    "margin_bottom": 48
+  },
+  "tts": {
+    "voice_a": "id-ID-GadisNeural",
+    "voice_b": "id-ID-ArdiNeural",
+    "rate": "+0%"
+  }
+}

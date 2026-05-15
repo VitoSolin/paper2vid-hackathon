@@ -1,0 +1,57 @@
+{
+  "arxiv_id": "1706.03762",
+  "title": "Attention Is All You Need",
+  "speakers": { "A": "Host", "B": "Ahli" },
+  "turns": [
+    {
+      "speaker": "A",
+      "text": "Paper hari ini judulnya Attention Is All You Need. Kenapa ini penting?"
+    },
+    {
+      "speaker": "B",
+      "text": "Karena paper ini memperkenalkan Transformer: model yang hanya pakai mekanisme attention, tanpa RNN atau CNN di encoder-decoder."
+    },
+    {
+      "speaker": "A",
+      "text": "Masalah apa yang mereka selesaikan?"
+    },
+    {
+      "speaker": "B",
+      "text": "Model sekuens lama sulit diparalelkan dan butuh waktu latih lama. Attention sudah dipakai, tapi masih dibungkus arsitektur recurrent yang berat."
+    },
+    {
+      "speaker": "A",
+      "text": "Metodenya apa intinya?"
+    },
+    {
+      "speaker": "B",
+      "text": "Self-attention multi-head plus positional encoding. Encoder dan decoder distack, sehingga setiap posisi bisa melihat seluruh konteks sekaligus."
+    },
+    {
+      "speaker": "A",
+      "text": "Hasil utamanya?"
+    },
+    {
+      "speaker": "B",
+      "text": "Di terjemahan WMT14 mereka kalahkan baseline kuat, misalnya 28.4 BLEU EN-DE, dan latih jauh lebih cepat di GPU."
+    },
+    {
+      "speaker": "A",
+      "text": "Kenapa ini mengubah bidang NLP?"
+    },
+    {
+      "speaker": "B",
+      "text": "Transformer jadi fondasi LLM modern: lebih paralel, skalabel, dan menjadi standar arsitektur setelah 2017."
+    },
+    {
+      "speaker": "A",
+      "text": "Ada batasannya?"
+    },
+    {
+      "speaker": "B",
+      "text": "Kompleksitas attention kuadratik terhadap panjang sekuens. Untuk teks sangat panjang, biaya memori dan compute masih jadi tantangan."
+    }
+  ],
+  "estimated_duration_sec": 90,
+  "notes": "Salin ke data/<arxiv_id>/dialog-script.json setelah fetch"
+}

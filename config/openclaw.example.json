@@ -1,0 +1,15 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "/path/to/paper2video",
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-6"
+      }
+    }
+  },
+  "skills": {
+    "load": {
+      "watch": true
+    }
+  }
+}
