@@ -51,7 +51,9 @@ Layout & font: `config/video.default.json`
 
 ## TTS
 
-- Speaker **A** → `id-ID-GadisNeural` (default)
-- Speaker **B** → `id-ID-ArdiNeural` (default)
+**ElevenLabs (disarankan):** set `ELEVENLABS_API_KEY` + `TTS_PROVIDER=elevenlabs` di `.env`.  
+Voice: Pak Nam `TIXYCOMzK2Vw9OZovSLs`, Zaba `JaUVfDrFcfwGIsv8X2kN` — lihat `docs/ELEVENLABS.md`.
 
-Audio per giliran disimpan di `data/<arxiv_id>/audio/` (cache; hapus folder untuk regenerate).
+**edge-tts (gratis):** `TTS_PROVIDER=edge`
+
+Audio per giliran: `data/<arxiv_id>/audio/` — hapus folder untuk regenerate.

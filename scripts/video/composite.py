@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +44,7 @@ def _place_character(
     margin_x = ch.get("margin_x_ratio", 0.06)
 
     target_h = int(h * ch.get("height_ratio", 0.42))
-    scale = ch.get("active_scale", 1.0) if active else ch.get("inactive_scale", 0.88)
+    scale = ch.get("active_scale", 1.0)
     target_h = int(target_h * scale)
 
     if entry.get("mirror", False):
@@ -54,12 +53,6 @@ def _place_character(
     ratio = target_h / sprite.height
     target_w = int(sprite.width * ratio)
     resized = sprite.resize((target_w, target_h), _RESAMPLE)
-
-    if not active:
-        alpha = resized.split()[3]
-        opacity = int(255 * ch.get("inactive_opacity", 0.55))
-        alpha = alpha.point(lambda p: int(p * opacity / 255))
-        resized.putalpha(alpha)
 
     margin_bottom = ch.get("margin_bottom", 48)
     y = h - target_h - margin_bottom
@@ -78,40 +71,41 @@ def _place_character(
     base.paste(resized, (x, y), resized)
 
 
+def _subtitle_y(cfg: dict[str, Any], h: int) -> int:
+    sub = cfg.get("subtitle", {})
+    layers_sub = cfg.get("layers", {}).get("subtitle", {})
+    if "margin_top_ratio" in sub:
+        return int(h * sub["margin_top_ratio"])
+    if "margin_top_ratio" in layers_sub:
+        return int(h * layers_sub["margin_top_ratio"])
+    return layers_sub.get("margin_top", sub.get("margin_top", 72))
+
+
 def _draw_subtitle(
     draw: ImageDraw.ImageDraw,
     text: str,
     w: int,
+    h: int,
     cfg: dict[str, Any],
 ) -> None:
     sub = cfg.get("subtitle", {})
     font_size = sub.get("font_size", 52)
     font = _load_font(font_size)
-    margin_top = cfg.get("layers", {}).get("subtitle", {}).get("margin_top", 72)
-    max_w = int(w * sub.get("max_width_ratio", 0.9))
+    y = _subtitle_y(cfg, h)
 
     if sub.get("uppercase", True):
         text = text.upper()
 
-    # perkiraan lebar karakter untuk wrap
-    avg_char = font_size * 0.55
-    cols = max(12, int(max_w / avg_char))
-    lines = textwrap.wrap(text, width=cols)
-    line_h = font_size + 12
-    block_h = len(lines) * line_h
-    y = margin_top
-
-    for line in lines:
-        draw.text(
-            (w // 2, y + line_h // 2),
-            line,
-            font=font,
-            fill=sub.get("fill", "#FFFFFF"),
-            stroke_width=sub.get("stroke_width", 5),
-            stroke_fill=sub.get("stroke", "#000000"),
-            anchor="mm",
-        )
-        y += line_h
+    # Satu chunk pendek (≤ max_words); satu baris, center horizontal
+    draw.text(
+        (w // 2, y),
+        text,
+        font=font,
+        fill=sub.get("fill", "#FFFFFF"),
+        stroke_width=sub.get("stroke_width", 5),
+        stroke_fill=sub.get("stroke", "#000000"),
+        anchor="mm",
+    )
 
 
 def render_frame(
@@ -127,17 +121,19 @@ def render_frame(
     cast = cfg.get("cast", {})
 
     frame = _cover_resize(background, w, h).convert("RGBA")
+    # Hanya tampilkan pembicara aktif (tanpa fade / karakter kedua)
     for sid, sprite in sprites.items():
+        if active_speaker is not None and sid != active_speaker:
+            continue
         side = cast.get(sid, {}).get("side")
         if not side:
             side = "left" if sid in ("A", "paknam") else "right"
-        is_active = active_speaker == sid
         entry = cast.get(sid, {})
-        _place_character(frame, sprite, side, is_active, cfg, cast_entry=entry)
+        _place_character(frame, sprite, side, True, cfg, cast_entry=entry)
 
     overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    _draw_subtitle(draw, subtitle, w, cfg)
+    _draw_subtitle(draw, subtitle, w, h, cfg)
     return Image.alpha_composite(frame, overlay).convert("RGB")
 
 

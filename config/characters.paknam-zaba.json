@@ -42,11 +42,13 @@
   "layers": {
     "background": { "z": 0, "fit": "cover", "per_speaker": true },
     "characters": { "z": 1, "layout": "bottom_split" },
-    "subtitle": { "z": 2, "position": "top", "margin_top": 72 }
+    "subtitle": { "z": 2, "position": "upper_center" }
   },
   "subtitle": {
-    "font_size": 48,
-    "max_width_ratio": 0.9,
+    "font_size": 52,
+    "max_words_per_chunk": 5,
+    "margin_top_ratio": 0.22,
+    "max_width_ratio": 0.88,
     "uppercase": true,
     "fill": "#FFFFFF",
     "stroke": "#000000",
@@ -55,13 +57,28 @@
   "characters": {
     "height_ratio": 0.45,
     "active_scale": 1.0,
-    "inactive_scale": 0.9,
-    "inactive_opacity": 0.45,
+    "solo_speaker": true,
     "margin_bottom": 40,
     "margin_x_ratio": 0.06
   },
   "tts": {
-    "paknam": { "voice": "id-ID-ArdiNeural", "rate": "+0%" },
-    "zaba": { "voice": "id-ID-GadisNeural", "rate": "+0%" }
+    "provider": "elevenlabs",
+    "model_id": "eleven_multilingual_v2",
+    "paknam": {
+      "voice_id": "TIXYCOMzK2Vw9OZovSLs",
+      "stability": 0.45,
+      "similarity_boost": 0.8,
+      "style": 0.35
+    },
+    "zaba": {
+      "voice_id": "JaUVfDrFcfwGIsv8X2kN",
+      "stability": 0.45,
+      "similarity_boost": 0.8,
+      "style": 0.4
+    },
+    "_edge_fallback": {
+      "paknam": { "voice": "id-ID-ArdiNeural", "rate": "-8%" },
+      "zaba": { "voice": "id-ID-GadisNeural", "rate": "-8%" }
+    }
   }
 }

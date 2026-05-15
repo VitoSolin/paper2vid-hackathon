@@ -33,6 +33,7 @@ from characters import (  # noqa: E402
 )
 from composite import render_frame  # noqa: E402
 from generate_assets import ensure_defaults  # noqa: E402
+from subtitles import chunk_subtitle  # noqa: E402
 from tts import synthesize_sync  # noqa: E402
 
 
@@ -65,37 +66,37 @@ def make_segment(
     duration: float,
     segment_path: Path,
     fps: int = 30,
+    audio_start: float = 0.0,
 ) -> None:
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-loop",
-            "1",
-            "-i",
-            str(frame_path),
-            "-i",
-            str(audio_path),
-            "-c:v",
-            "libx264",
-            "-tune",
-            "stillimage",
-            "-pix_fmt",
-            "yuv420p",
-            "-r",
-            str(fps),
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            "-t",
-            f"{duration:.3f}",
-            "-shortest",
-            str(segment_path),
-        ],
-        check=True,
-        capture_output=True,
-    )
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-loop",
+        "1",
+        "-i",
+        str(frame_path),
+        "-ss",
+        f"{audio_start:.3f}",
+        "-i",
+        str(audio_path),
+        "-c:v",
+        "libx264",
+        "-tune",
+        "stillimage",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        str(fps),
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-t",
+        f"{duration:.3f}",
+        "-shortest",
+        str(segment_path),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
 
 
 def concat_segments(segment_paths: list[Path], out_mp4: Path) -> None:
@@ -122,14 +123,6 @@ def concat_segments(segment_paths: list[Path], out_mp4: Path) -> None:
     list_file.unlink(missing_ok=True)
 
 
-def _tts_voice(cfg: dict, speaker: str) -> tuple[str, str]:
-    tts = cfg.get("tts", {})
-    if speaker in tts and isinstance(tts[speaker], dict):
-        entry = tts[speaker]
-        return entry.get("voice", "id-ID-ArdiNeural"), entry.get("rate", "+0%")
-    if speaker == "paknam":
-        return tts.get("voice_a", "id-ID-ArdiNeural"), tts.get("rate", "+0%")
-    return tts.get("voice_b", "id-ID-GadisNeural"), tts.get("rate", "+0%")
 
 
 def render_dialog(
@@ -179,39 +172,46 @@ def render_dialog(
                 expr = None
 
             text = turn["text"]
-            voice, rate = _tts_voice(cfg, speaker if cast_mode else speaker)
-
             audio_name = f"turn_{i:02d}_{speaker}.mp3"
             audio_file = audio_dir / audio_name
             if not audio_file.exists():
-                synthesize_sync(text, voice, audio_file, rate=rate)
+                synthesize_sync(
+                    text,
+                    audio_file,
+                    speaker=speaker if cast_mode else speaker.lower(),
+                    cfg=cfg,
+                )
 
             duration = audio_duration(audio_file)
+            max_words = cfg.get("subtitle", {}).get("max_words_per_chunk", 5)
+            sub_chunks = chunk_subtitle(text, max_words=max_words)
+            chunk_dur = duration / len(sub_chunks)
 
             if cast_mode:
                 bg_path = resolve_background(cfg, speaker)
                 bg_img = Image.open(bg_path)
-                sprites = {}
-                for sid in cast_ids:
-                    if sid == speaker:
-                        sprites[sid] = sprite_for_turn(cfg, sid, expr)
-                    else:
-                        sprites[sid] = sprite_for_turn(cfg, sid, None)
-                frame = render_frame(bg_img, sprites, text, speaker, cfg)
+                sprites = {speaker: sprite_for_turn(cfg, speaker, expr)}
             else:
-                frame = render_frame(
-                    legacy_bg,
-                    {"A": legacy_a, "B": legacy_b},
-                    text,
-                    speaker,
-                    cfg,
-                )
+                legacy_sprites = {"A": legacy_a, "B": legacy_b}
+                key = speaker if speaker in legacy_sprites else "A"
+                sprites = {key: legacy_sprites[key]}
+                bg_img = legacy_bg
+                speaker = key
 
-            frame_path = tmp_path / f"frame_{i:02d}.png"
-            frame.save(frame_path)
-            seg_path = tmp_path / f"seg_{i:02d}.mp4"
-            make_segment(frame_path, audio_file, duration, seg_path, fps=cfg.get("fps", 30))
-            segments.append(seg_path)
+            for j, sub_text in enumerate(sub_chunks):
+                frame = render_frame(bg_img, sprites, sub_text, speaker, cfg)
+                frame_path = tmp_path / f"frame_{i:02d}_{j:02d}.png"
+                frame.save(frame_path)
+                seg_path = tmp_path / f"seg_{i:02d}_{j:02d}.mp4"
+                make_segment(
+                    frame_path,
+                    audio_file,
+                    chunk_dur,
+                    seg_path,
+                    fps=cfg.get("fps", 30),
+                    audio_start=j * chunk_dur,
+                )
+                segments.append(seg_path)
 
         concat_segments(segments, out_mp4)
 
