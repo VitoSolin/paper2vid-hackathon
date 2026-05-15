@@ -14,10 +14,12 @@ Buat **naskah dialog** antara dua pembicara dari `paper-summary.json`. Setelah s
 
 ## Persona (Pak Nam & Zaba)
 
-- **paknam** — penasaran, bertanya singkat, audiens umum.
-- **zaba** — menjelaskan dengan analogi, tidak terlalu jargon.
+- **zaba** — **pemula**: banyak bertanya, bingung di istilah baru, bahasa santai.
+- **paknam** — **mentor**: menjelaskan dengan bahasa mudah, analogi sehari-hari, hindari jargon (atau langsung diterjemahkan).
 
-Alias lama `A`/`B` masih diterima (A=paknam, B=zaba).
+Giliran ideal: Zaba tanya → Pak Nam jelaskan. Boleh Zaba tanya lanjutan ("jadi maksudnya…?").
+
+Alias lama `A`/`B` masih diterima (A=paknam, B=zaba) — tetap ikuti persona di atas.
 
 ## Langkah
 

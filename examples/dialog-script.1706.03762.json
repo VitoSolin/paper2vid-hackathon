@@ -2,68 +2,22 @@
   "arxiv_id": "1706.03762",
   "title": "Attention Is All You Need",
   "speakers": { "paknam": "Pak Nam", "zaba": "Zaba" },
+  "persona": {
+    "zaba": "pemula — banyak bertanya",
+    "paknam": "mentor — bahasa mudah + analogi"
+  },
   "turns": [
     {
-      "speaker": "paknam",
-      "expression": "neutral",
-      "text": "Zaba, paper hari ini judulnya Attention Is All You Need. Kenapa ini penting banget?"
-    },
-    {
-      "speaker": "zaba",
-      "expression": "thinking",
-      "text": "Pak Nam, karena paper ini memperkenalkan Transformer. Model yang cuma pakai attention, tanpa RNN atau CNN di encoder-decoder."
-    },
-    {
-      "speaker": "paknam",
-      "expression": "thinking",
-      "text": "Oke, masalah apa sih yang mereka mau selesaikan?"
-    },
-    {
       "speaker": "zaba",
       "expression": "neutral",
-      "text": "Model sekuens lama susah diparalelkan dan latihannya lama. Attention memang sudah ada, tapi masih dibungkus arsitektur recurrent yang berat."
+      "text": "Pak Nam, judulnya Attention Is All You Need. Itu paper tentang apa sih?"
     },
     {
       "speaker": "paknam",
       "expression": "neutral",
-      "text": "Metodenya apa intinya?"
-    },
-    {
-      "speaker": "zaba",
-      "expression": "thinking",
-      "text": "Self-attention multi-head plus positional encoding. Encoder dan decoder distack, jadi setiap posisi bisa lihat konteks sekaligus."
-    },
-    {
-      "speaker": "paknam",
-      "expression": "laugh",
-      "text": "Wah, hasil utamanya gimana?"
-    },
-    {
-      "speaker": "zaba",
-      "expression": "neutral",
-      "text": "Di terjemahan WMT14 mereka kalahkan baseline kuat. Misalnya 28.4 BLEU untuk English-German, dan latihnya jauh lebih cepat di GPU."
-    },
-    {
-      "speaker": "paknam",
-      "expression": "neutral",
-      "text": "Kenapa ini mengubah dunia NLP?"
-    },
-    {
-      "speaker": "zaba",
-      "expression": "laugh",
-      "text": "Transformer jadi fondasi LLM modern. Lebih paralel, skalabel, dan jadi standar arsitektur sejak 2017."
-    },
-    {
-      "speaker": "paknam",
-      "expression": "confused",
-      "text": "Ada batasannya nggak?"
-    },
-    {
-      "speaker": "zaba",
-      "expression": "thinking",
-      "text": "Kompleksitas attention kuadratik terhadap panjang sekuens. Untuk teks super panjang, biaya memori dan compute masih jadi tantangan."
+      "text": "Intinya mereka bikin arsitektur baru namanya Transformer. Cuma pakai mekanisme perhatian, tanpa RNN yang ribet."
     }
   ],
-  "estimated_duration_sec": 90,
-  "notes": "Contoh dialog Pak Nam & Zaba untuk video-render"
+  "estimated_duration_sec": 100,
+  "notes": "Contoh format — salin pola ke paper lain"
 }
