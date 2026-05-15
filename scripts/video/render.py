@@ -142,10 +142,10 @@ def render_dialog(
     arxiv_id = dialog.get("arxiv_id", dialog_path.parent.name)
     paper_dir = dialog_path.parent
 
-    cfg_path = config_path or (
-        CAST_CONFIG if (use_cast is True or (use_cast is None and CAST_CONFIG.exists()))
-        else CONFIG_DEFAULT
-    )
+    cfg_path = Path(config_path or CONFIG_DEFAULT).resolve()
+    if use_cast is not False and CAST_CONFIG.exists():
+        if config_path is None or config_path == CAST_CONFIG:
+            cfg_path = CAST_CONFIG.resolve()
     cfg = load_json(cfg_path)
     cast_mode = "cast" in cfg
 
@@ -220,7 +220,7 @@ def render_dialog(
         "output": str(out_mp4.relative_to(ROOT)),
         "turns": len(dialog.get("turns", [])),
         "cast": cast_ids if cast_mode else ["A", "B"],
-        "config": str(cfg_path.relative_to(ROOT)),
+        "config": str(cfg_path.relative_to(ROOT.resolve())),
         "layers": ["background", "characters", "subtitle"],
         "size": f"{cfg.get('width')}x{cfg.get('height')}",
     }

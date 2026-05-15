@@ -29,6 +29,9 @@ def normalize_speaker(raw: str, cfg: dict[str, Any]) -> str:
 def resolve_sprite(cast: dict[str, Any], speaker: str, expression: str | None) -> Path:
     entry = cast["cast"][speaker]
     expr = expression or entry.get("default_expression", "neutral")
+    aliases = entry.get("expressions", {})
+    if expr in aliases:
+        expr = aliases[expr]
     sprites = entry["sprites"]
     if expr not in sprites:
         expr = entry.get("default_expression", "neutral")

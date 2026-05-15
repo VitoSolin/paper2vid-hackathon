@@ -57,10 +57,10 @@ python scripts/run_pipeline.py 2301.07041
 openclaw agent --message "Ekstrak paper 2301.07041 ke paper-summary.json"
 openclaw agent --message "Buat dialog dua orang untuk paper 2301.07041"
 
-# Video (butuh ffmpeg) — contoh dialog: examples/dialog-script.1706.03762.json
-python scripts/run_pipeline.py 1706.03762
+# Video Pak Nam & Zaba (butuh ffmpeg + edge-tts)
 cp examples/dialog-script.1706.03762.json data/1706.03762/dialog-script.json
 python scripts/video/render.py data/1706.03762
+# → output/1706.03762.mp4 (1080×1920)
 ```
 
 ## Push ke GitHub

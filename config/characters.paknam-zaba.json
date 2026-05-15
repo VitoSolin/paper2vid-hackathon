@@ -6,24 +6,29 @@
   "cast": {
     "paknam": {
       "label": "Pak Nam",
-      "side": "left",
+      "side": "right",
       "background": "personA/bgpaknam.webp",
       "sprites": {
-        "neutral": "personA/paknam_neutral.png",
-        "laugh": "personA/paknam_laugh.png",
-        "thinking": "personA/paknam_thinking.png"
+        "neutral": "personA/paknam_neutral.webp",
+        "laugh": "personA/paknam_laugh.webp",
+        "thinking": "personA/paknam_thinking.webp"
       },
-      "default_expression": "neutral"
+      "default_expression": "neutral",
+      "expressions": {
+        "confused": "thinking"
+      }
     },
     "zaba": {
       "label": "Zaba",
       "side": "right",
+      "mirror": true,
+      "mirror_position": true,
       "background": "personA/bgzaba.webp",
       "sprites": {
-        "neutral": "personA/zaba_neutral.png",
-        "laugh": "personA/zaba_laugh.png",
-        "thinking": "personA/zaba_think.png",
-        "confused": "personA/zaba_confused.png"
+        "neutral": "personA/zaba_neutral.webp",
+        "laugh": "personA/zaba_laugh.webp",
+        "thinking": "personA/zaba_think.webp",
+        "confused": "personA/zaba_confused.webp"
       },
       "default_expression": "neutral"
     }
@@ -52,7 +57,8 @@
     "active_scale": 1.0,
     "inactive_scale": 0.9,
     "inactive_opacity": 0.45,
-    "margin_bottom": 40
+    "margin_bottom": 40,
+    "margin_x_ratio": 0.06
   },
   "tts": {
     "paknam": { "voice": "id-ID-ArdiNeural", "rate": "+0%" },

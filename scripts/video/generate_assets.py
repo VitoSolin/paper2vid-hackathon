@@ -24,7 +24,7 @@ def _gradient_bg(path: Path, w: int = 1080, h: int = 1920) -> None:
     draw.rectangle([80, 400, w - 80, h - 200], outline=(120, 140, 180), width=4)
     draw.line([w // 2, 420, w // 2, h - 220], fill=(90, 110, 150), width=2)
     path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(path, quality=92)
+    img.save(path, "WEBP", quality=90, method=6)
 
 
 def _character(path: Path, color: tuple[int, int, int], label: str) -> None:
@@ -36,13 +36,13 @@ def _character(path: Path, color: tuple[int, int, int], label: str) -> None:
     draw.rounded_rectangle([140, 260, 460, 820], radius=80, fill=color + (255,))
     draw.text((w // 2, h - 60), label, fill=(255, 255, 255, 200), anchor="mm")
     path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(path)
+    img.save(path, "WEBP", quality=90, method=6)
 
 
 def ensure_defaults() -> dict[str, Path]:
-    bg = ASSETS / "backgrounds" / "default.png"
-    a = ASSETS / "characters" / "speaker_a.png"
-    b = ASSETS / "characters" / "speaker_b.png"
+    bg = ASSETS / "backgrounds" / "default.webp"
+    a = ASSETS / "characters" / "speaker_a.webp"
+    b = ASSETS / "characters" / "speaker_b.webp"
     if not bg.exists():
         _gradient_bg(bg)
     if not a.exists():

@@ -1,57 +1,69 @@
 {
   "arxiv_id": "1706.03762",
   "title": "Attention Is All You Need",
-  "speakers": { "A": "Host", "B": "Ahli" },
+  "speakers": { "paknam": "Pak Nam", "zaba": "Zaba" },
   "turns": [
     {
-      "speaker": "A",
-      "text": "Paper hari ini judulnya Attention Is All You Need. Kenapa ini penting?"
+      "speaker": "paknam",
+      "expression": "neutral",
+      "text": "Zaba, paper hari ini judulnya Attention Is All You Need. Kenapa ini penting banget?"
     },
     {
-      "speaker": "B",
-      "text": "Karena paper ini memperkenalkan Transformer: model yang hanya pakai mekanisme attention, tanpa RNN atau CNN di encoder-decoder."
+      "speaker": "zaba",
+      "expression": "thinking",
+      "text": "Pak Nam, karena paper ini memperkenalkan Transformer. Model yang cuma pakai attention, tanpa RNN atau CNN di encoder-decoder."
     },
     {
-      "speaker": "A",
-      "text": "Masalah apa yang mereka selesaikan?"
+      "speaker": "paknam",
+      "expression": "thinking",
+      "text": "Oke, masalah apa sih yang mereka mau selesaikan?"
     },
     {
-      "speaker": "B",
-      "text": "Model sekuens lama sulit diparalelkan dan butuh waktu latih lama. Attention sudah dipakai, tapi masih dibungkus arsitektur recurrent yang berat."
+      "speaker": "zaba",
+      "expression": "neutral",
+      "text": "Model sekuens lama susah diparalelkan dan latihannya lama. Attention memang sudah ada, tapi masih dibungkus arsitektur recurrent yang berat."
     },
     {
-      "speaker": "A",
+      "speaker": "paknam",
+      "expression": "neutral",
       "text": "Metodenya apa intinya?"
     },
     {
-      "speaker": "B",
-      "text": "Self-attention multi-head plus positional encoding. Encoder dan decoder distack, sehingga setiap posisi bisa melihat seluruh konteks sekaligus."
+      "speaker": "zaba",
+      "expression": "thinking",
+      "text": "Self-attention multi-head plus positional encoding. Encoder dan decoder distack, jadi setiap posisi bisa lihat konteks sekaligus."
     },
     {
-      "speaker": "A",
-      "text": "Hasil utamanya?"
+      "speaker": "paknam",
+      "expression": "laugh",
+      "text": "Wah, hasil utamanya gimana?"
     },
     {
-      "speaker": "B",
-      "text": "Di terjemahan WMT14 mereka kalahkan baseline kuat, misalnya 28.4 BLEU EN-DE, dan latih jauh lebih cepat di GPU."
+      "speaker": "zaba",
+      "expression": "neutral",
+      "text": "Di terjemahan WMT14 mereka kalahkan baseline kuat. Misalnya 28.4 BLEU untuk English-German, dan latihnya jauh lebih cepat di GPU."
     },
     {
-      "speaker": "A",
-      "text": "Kenapa ini mengubah bidang NLP?"
+      "speaker": "paknam",
+      "expression": "neutral",
+      "text": "Kenapa ini mengubah dunia NLP?"
     },
     {
-      "speaker": "B",
-      "text": "Transformer jadi fondasi LLM modern: lebih paralel, skalabel, dan menjadi standar arsitektur setelah 2017."
+      "speaker": "zaba",
+      "expression": "laugh",
+      "text": "Transformer jadi fondasi LLM modern. Lebih paralel, skalabel, dan jadi standar arsitektur sejak 2017."
     },
     {
-      "speaker": "A",
-      "text": "Ada batasannya?"
+      "speaker": "paknam",
+      "expression": "confused",
+      "text": "Ada batasannya nggak?"
     },
     {
-      "speaker": "B",
-      "text": "Kompleksitas attention kuadratik terhadap panjang sekuens. Untuk teks sangat panjang, biaya memori dan compute masih jadi tantangan."
+      "speaker": "zaba",
+      "expression": "thinking",
+      "text": "Kompleksitas attention kuadratik terhadap panjang sekuens. Untuk teks super panjang, biaya memori dan compute masih jadi tantangan."
     }
   ],
   "estimated_duration_sec": 90,
-  "notes": "Salin ke data/<arxiv_id>/dialog-script.json setelah fetch"
+  "notes": "Contoh dialog Pak Nam & Zaba untuk video-render"
 }

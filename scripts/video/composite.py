@@ -37,12 +37,19 @@ def _place_character(
     side: str,
     active: bool,
     cfg: dict[str, Any],
+    cast_entry: dict[str, Any] | None = None,
 ) -> None:
     w, h = base.size
+    entry = cast_entry or {}
     ch = cfg.get("characters", {})
+    margin_x = ch.get("margin_x_ratio", 0.06)
+
     target_h = int(h * ch.get("height_ratio", 0.42))
     scale = ch.get("active_scale", 1.0) if active else ch.get("inactive_scale", 0.88)
     target_h = int(target_h * scale)
+
+    if entry.get("mirror", False):
+        sprite = ImageOps.mirror(sprite)
 
     ratio = target_h / sprite.height
     target_w = int(sprite.width * ratio)
@@ -56,10 +63,17 @@ def _place_character(
 
     margin_bottom = ch.get("margin_bottom", 48)
     y = h - target_h - margin_bottom
-    if side == "left":
-        x = int(w * 0.06)
+
+    # Posisi: mirror = tukar sisi kiri/kanan dari default side
+    place_side = side
+    if entry.get("mirror_position", False):
+        place_side = "left" if side == "right" else "right"
+
+    mx = int(w * margin_x)
+    if place_side == "left":
+        x = mx
     else:
-        x = w - target_w - int(w * 0.06)
+        x = w - target_w - mx
 
     base.paste(resized, (x, y), resized)
 
@@ -118,7 +132,8 @@ def render_frame(
         if not side:
             side = "left" if sid in ("A", "paknam") else "right"
         is_active = active_speaker == sid
-        _place_character(frame, sprite, side, is_active, cfg)
+        entry = cast.get(sid, {})
+        _place_character(frame, sprite, side, is_active, cfg, cast_entry=entry)
 
     overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
