@@ -21,9 +21,9 @@
       },
       "background": "personA/bgpaknam.webp",
       "sprites": {
-        "neutral": "personA/paknam_neutral.webp",
-        "laugh": "personA/paknam_laugh.webp",
-        "thinking": "personA/paknam_thinking.webp"
+        "neutral": "personA/paknam_neutral_up.png",
+        "laugh": "personA/paknam_laugh_up.png",
+        "thinking": "personA/paknam_thinking_up.png"
       },
       "default_expression": "neutral",
       "expressions": {
@@ -48,10 +48,10 @@
       },
       "background": "personA/bgzaba.webp",
       "sprites": {
-        "neutral": "personA/zaba_neutral.webp",
-        "laugh": "personA/zaba_laugh.webp",
-        "thinking": "personA/zaba_think.webp",
-        "confused": "personA/zaba_confused.webp"
+        "neutral": "personA/zaba_neutral_up.png",
+        "laugh": "personA/zaba_laugh_up.png",
+        "thinking": "personA/zaba_think_up.png",
+        "confused": "personA/zaba_confused_up.png"
       },
       "default_expression": "neutral"
     }
