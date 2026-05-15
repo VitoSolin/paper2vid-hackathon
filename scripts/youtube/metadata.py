@@ -69,6 +69,46 @@ def _truncate(s: str, n: int) -> str:
     return s[: n - 1].rstrip() + "…"
 
 
+def _sanitize_youtube_text(s: str) -> str:
+    """
+    YouTube menolak < > di deskripsi (dianggap HTML), mis. K<3 di temuan paper.
+  """
+    if not s:
+        return s
+    s = s.replace("\r\n", "\n").replace("\r", "\n")
+    s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", s)
+    # Perbandingan: K<3, K < 3 → teks biasa
+    s = re.sub(r"(\w+)\s*<\s*(\w+)", r"\1 kurang dari \2", s)
+    s = re.sub(r"(\w+)\s*>\s*(\w+)", r"\1 lebih dari \2", s)
+    # Sisa bracket (jangan sampai ada < > sama sekali)
+    s = s.replace("<", "(").replace(">", ")")
+    s = re.sub(r"  +", " ", s)
+    return s.strip()
+
+
+def build_minimal_description(paper_dir: Path) -> str:
+    """Deskripsi aman jika versi panjang ditolak API YouTube."""
+    meta = _load_json(paper_dir / "metadata.json") or {}
+    summary = _load_json(paper_dir / "paper-summary.json") or {}
+    arxiv_id = str(summary.get("arxiv_id") or meta.get("arxiv_id") or paper_dir.name)
+    title = _sanitize_youtube_text(summary.get("title") or meta.get("title") or arxiv_id)
+    abs_url = _arxiv_abs_url(arxiv_id)
+    hook = _sanitize_youtube_text(
+        summary.get("why_important") or summary.get("main_findings") or ""
+    )
+    hook = _truncate(hook, 500) if hook else ""
+    lines = [
+        title,
+        "",
+        "Ringkasan paper arXiv dalam format video edukasi (Pak Nam dan Zaba).",
+        f"Paper: {abs_url}",
+    ]
+    if hook:
+        lines.extend(["", hook])
+    lines.extend(["", "#arXiv #MachineLearning #PaperReview"])
+    return _sanitize_youtube_text("\n".join(lines))
+
+
 def _arxiv_abs_url(arxiv_id: str) -> str:
     aid = arxiv_id.replace("_", "/").split("v")[0]
     return f"https://arxiv.org/abs/{aid}"
@@ -119,9 +159,11 @@ def build_metadata(
         abstract = summary.get("abstract") or meta.get("abstract") or ""
         hook = _truncate(abstract, 400)
 
-    problem = summary.get("problem", "")
-    method = summary.get("method", "")
-    findings = summary.get("main_findings", "")
+    problem = _sanitize_youtube_text(summary.get("problem", ""))
+    method = _sanitize_youtube_text(summary.get("method", ""))
+    findings = _sanitize_youtube_text(summary.get("main_findings", ""))
+    hook = _sanitize_youtube_text(hook) if hook else ""
+    title = _sanitize_youtube_text(title)
 
     body_parts = [
         f"📄 {title}",
@@ -148,10 +190,12 @@ def build_metadata(
             "Subscribe untuk paper berikutnya!",
         ]
     )
-    description = _truncate("\n".join(body_parts), MAX_DESC)
+    description = _sanitize_youtube_text(
+        _truncate("\n".join(body_parts), MAX_DESC)
+    )
 
     base_title = f"{title} — {channel_suffix}"
-    yt_title = _truncate(base_title, MAX_TITLE)
+    yt_title = _truncate(_sanitize_youtube_text(base_title), MAX_TITLE)
 
     tags = [
         "arXiv",
@@ -178,6 +222,7 @@ def build_metadata(
         key = t.lower().strip()
         if not key or key in seen:
             continue
+        t = _sanitize_youtube_text(t)
         if len(t) > 30:
             t = t[:30]
         if total + len(t) + 1 > MAX_TAGS:

@@ -145,12 +145,46 @@ def _read_paper_context(paper_dir: Path, max_chars: int = 48000) -> str:
     return "\n\n".join(parts)
 
 
+def _fix_invalid_json_escapes(text: str) -> str:
+    """
+    LLM sering menyisipkan LaTeX (\\emph, \\cite) di string JSON.
+    Backslash tunggal yang bukan escape JSON valid → di-double.
+    """
+    out: list[str] = []
+    i = 0
+    in_string = False
+    while i < len(text):
+        ch = text[i]
+        if ch == '"' and (i == 0 or text[i - 1] != "\\"):
+            in_string = not in_string
+            out.append(ch)
+            i += 1
+            continue
+        if in_string and ch == "\\" and i + 1 < len(text):
+            nxt = text[i + 1]
+            if nxt in '"\\/bfnrtu':
+                out.append(ch)
+                out.append(nxt)
+                i += 2
+                continue
+            out.append("\\\\")
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _parse_json_response(text: str) -> dict[str, Any]:
     text = text.strip()
     fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if fence:
         text = fence.group(1).strip()
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        fixed = _fix_invalid_json_escapes(text)
+        return json.loads(fixed)
 
 
 def _anthropic_chat(system: str, user: str, model: str, api_key: str) -> str:
@@ -290,6 +324,7 @@ def generate_paper_summary(paper_dir: Path, *, max_verify_retries: int = 2) -> P
         "categories, pdf_url, abstract, problem, method, main_findings, "
         "why_important, limitations, sources — semua narasi field dalam Bahasa Indonesia. "
         "Jangan mengarang angka/eksperimen di luar sumber. "
+        "Jangan gunakan LaTeX/backslash (mis. \\emph) — teks polos saja. "
         "sources.used_abstract true jika abstract dipakai; used_pdf true jika paper.txt dipakai."
     )
     user_base = f"Buat paper-summary.json untuk arxiv_id {arxiv_slash}.\n\n{ctx}"
@@ -379,7 +414,8 @@ def generate_dialog_script(paper_dir: Path) -> Path:
         "speakers {paknam, zaba}, turns[{speaker, text, expression}], "
         "estimated_duration_sec, notes. 8-14 giliran, Bahasa Indonesia, "
         "expression: neutral|laugh|thinking|confused. "
-        "Jangan tambahkan klaim di luar paper-summary."
+        "Jangan tambahkan klaim di luar paper-summary. "
+        "Tanpa LaTeX/backslash di teks dialog."
     )
     user = f"Buat dialog-script dari paper-summary:\n\n{summary}"
     raw = llm_chat(system, user)

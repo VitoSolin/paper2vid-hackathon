@@ -167,15 +167,16 @@ def run_e2e(
 
     # E — Render
     _step("Render video 1080×1920 + TTS", "E", total, 5)
-    run_cmd(
-        [
-            py,
-            str(ROOT / "scripts" / "video" / "render.py"),
-            str(pdir),
-            "--config",
-            str(ROOT / "config" / "characters.paknam-zaba.json"),
-        ]
-    )
+    render_cmd = [
+        py,
+        str(ROOT / "scripts" / "video" / "render.py"),
+        str(pdir),
+        "--config",
+        str(ROOT / "config" / "characters.paknam-zaba.json"),
+    ]
+    if force_llm or os.environ.get("PAPER2VIDEO_FORCE_LLM") == "1":
+        render_cmd.append("--refresh-audio")
+    run_cmd(render_cmd)
     if not out_mp4.exists():
         _fail(f"Video tidak ada: {out_mp4}")
     _ok(str(out_mp4.relative_to(ROOT)))

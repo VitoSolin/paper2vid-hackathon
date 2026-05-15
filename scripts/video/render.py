@@ -10,8 +10,10 @@ Render video 9:16 berlapis:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import os
 import subprocess
 import sys
 import tempfile
@@ -47,6 +49,46 @@ from wiggle import wiggle_offsets  # noqa: E402
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _audio_meta_path(audio_path: Path) -> Path:
+    return audio_path.with_suffix(".meta.json")
+
+
+def _needs_resynth(audio_path: Path, text: str) -> bool:
+    """True jika audio belum ada atau teks giliran berubah (dialog di-regenerate)."""
+    if os.environ.get("PAPER2VIDEO_REFRESH_AUDIO", "").strip() in ("1", "true", "yes"):
+        return True
+    if not audio_path.exists():
+        return True
+    meta_path = _audio_meta_path(audio_path)
+    if not meta_path.exists():
+        return True
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        return meta.get("text", "").strip() != text.strip()
+    except (json.JSONDecodeError, OSError):
+        return True
+
+
+def _write_audio_meta(audio_path: Path, text: str) -> None:
+    meta = {
+        "text": text.strip(),
+        "sha256": hashlib.sha256(text.strip().encode()).hexdigest()[:16],
+    }
+    _audio_meta_path(audio_path).write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _cleanup_legacy_turn_audio(audio_dir: Path) -> None:
+    """Hapus turn_XX_speaker.mp3 (satu file per giliran) — diganti per-chunk."""
+    for mp3 in audio_dir.glob("turn_*.mp3"):
+        parts = mp3.stem.split("_")
+        if len(parts) == 3:  # turn_00_zaba
+            mp3.unlink(missing_ok=True)
+            _audio_meta_path(mp3).unlink(missing_ok=True)
 
 
 def audio_duration(path: Path) -> float:
@@ -181,6 +223,7 @@ def render_dialog(
     out_mp4: Path | None = None,
     config_path: Path | None = None,
     use_cast: bool | None = None,
+    refresh_audio: bool = False,
 ) -> Path:
     dialog = load_json(dialog_path)
     arxiv_id = dialog.get("arxiv_id", dialog_path.parent.name)
@@ -199,6 +242,9 @@ def render_dialog(
 
     audio_dir = paper_dir / "audio"
     audio_dir.mkdir(exist_ok=True)
+    if refresh_audio:
+        os.environ["PAPER2VIDEO_REFRESH_AUDIO"] = "1"
+    _cleanup_legacy_turn_audio(audio_dir)
 
     # Legacy generic assets
     legacy_bg = legacy_a = legacy_b = None
@@ -224,20 +270,8 @@ def render_dialog(
                 expr = None
 
             text = turn["text"]
-            audio_name = f"turn_{i:02d}_{speaker}.mp3"
-            audio_file = audio_dir / audio_name
-            if not audio_file.exists():
-                synthesize_sync(
-                    text,
-                    audio_file,
-                    speaker=speaker if cast_mode else speaker.lower(),
-                    cfg=cfg,
-                )
-
-            duration = audio_duration(audio_file)
             max_words = cfg.get("subtitle", {}).get("max_words_per_chunk", 5)
             sub_chunks = chunk_subtitle(text, max_words=max_words)
-            chunk_dur = duration / len(sub_chunks)
 
             if cast_mode:
                 bg_path = resolve_background(cfg, speaker)
@@ -262,7 +296,17 @@ def render_dialog(
 
             for j, sub_text in enumerate(sub_chunks):
                 seg_path = tmp_path / f"seg_{i:02d}_{j:02d}.mp4"
-                audio_start = j * chunk_dur
+                audio_name = f"turn_{i:02d}_{j:02d}_{speaker}.mp3"
+                audio_file = audio_dir / audio_name
+                if _needs_resynth(audio_file, sub_text):
+                    synthesize_sync(
+                        sub_text,
+                        audio_file,
+                        speaker=speaker if cast_mode else speaker.lower(),
+                        cfg=cfg,
+                    )
+                    _write_audio_meta(audio_file, sub_text)
+                chunk_dur = audio_duration(audio_file)
 
                 if wiggle_on and wiggle_method == "ffmpeg":
                     side = (
@@ -290,7 +334,6 @@ def render_dialog(
                         prepared.base_x,
                         prepared.base_y,
                         fps=out_fps,
-                        audio_start=audio_start,
                         time_offset=global_wiggle_t,
                     )
                 elif wiggle_on:
@@ -330,7 +373,6 @@ def render_dialog(
                         seg_path,
                         input_fps=anim_fps,
                         output_fps=out_fps,
-                        audio_start=audio_start,
                     )
                 else:
                     frame = render_frame(
@@ -344,7 +386,6 @@ def render_dialog(
                         chunk_dur,
                         seg_path,
                         fps=out_fps,
-                        audio_start=audio_start,
                     )
                 segments.append(seg_path)
                 global_wiggle_t += chunk_dur
@@ -383,6 +424,11 @@ def main() -> None:
         action="store_true",
         help="Pakai placeholder assets/ generik",
     )
+    parser.add_argument(
+        "--refresh-audio",
+        action="store_true",
+        help="Regenerate semua TTS (abaikan cache audio)",
+    )
     args = parser.parse_args()
 
     dialog_path = Path(args.dialog)
@@ -410,6 +456,7 @@ def main() -> None:
             out_mp4=args.output,
             config_path=config_path,
             use_cast=not args.legacy,
+            refresh_audio=args.refresh_audio,
         )
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode() if e.stderr else str(e)

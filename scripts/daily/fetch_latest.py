@@ -55,14 +55,29 @@ def fetch_candidate_ids(count: int, schedule: dict | None = None) -> list[str]:
             if raw_id not in candidates:
                 candidates.append(raw_id)
 
+    print(f"Memindai {len(candidates)} kandidat (max_scan={max_scan})…", flush=True)
+    skipped_known = 0
     picked: list[str] = []
     for raw_id in candidates:
         aid = raw_id.replace("/", "_")
         if is_known(aid):
+            skipped_known += 1
             continue
         picked.append(raw_id)
         if len(picked) >= count:
             break
+
+    if picked:
+        print(
+            f"✓ Memilih {len(picked)} paper: {', '.join(picked)} "
+            f"(lewati {skipped_known} yang sudah pernah diproses)",
+            flush=True,
+        )
+    else:
+        print(
+            f"⚠ Tidak ada paper baru ({skipped_known} kandidat sudah dikenal)",
+            flush=True,
+        )
     return picked
 
 

@@ -13,8 +13,11 @@ Jalankan:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,6 +37,118 @@ except ImportError as e:
     ) from e
 
 _running: set[int] = set()
+
+# Baris log yang dikirim ke chat (progress live)
+_PROGRESS_LINE = re.compile(
+    r"(\[[A-F]/\d+\].*)|"  # langkah A–F
+    r"(Discover via .+)|"
+    r"(Memindai \d+ kandidat)|"
+    r"(✓ Memilih .+)|"
+    r"(⚠ Tidak ada paper baru)|"
+    r"(Paper: .+)|"
+    r"(  ✓ .+)|"
+    r"(  ✗ .+)|"
+    r"(  ⚠ .+)|"
+    r"(  ↻ .+)|"
+    r"(LLM \[.+→.+)|"
+    r"(  \(OpenCode LLM)|"
+    r"(SELESAI —)"
+)
+
+
+_PAPER_LINE = re.compile(r"^Paper:\s*(\S+)")
+_PICKED_LINE = re.compile(r"✓ Memilih \d+ paper:\s*([^,\s]+)")
+
+
+def _paper_data_dir(arxiv_id: str) -> Path:
+    return ROOT / "data" / arxiv_id.replace("/", "_")
+
+
+def _format_dialog_preview(path: Path) -> str:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    parts: list[str] = []
+    title = data.get("title") or data.get("arxiv_id", "")
+    if title:
+        parts.append(f"📄 {title}")
+    speakers = data.get("speakers") or {}
+    for i, turn in enumerate(data.get("turns") or [], 1):
+        sp = (turn.get("speaker") or "?").lower()
+        name = speakers.get(sp) or ("Pak Nam" if sp == "paknam" else "Zaba" if sp == "zaba" else sp)
+        text = (turn.get("text") or "").strip()
+        parts.append(f"{i}. {name}: {text}")
+    est = data.get("estimated_duration_sec")
+    if est:
+        parts.append(f"\n⏱ ~{int(est)} detik")
+    return "\n\n".join(parts)
+
+
+async def _send_dialog_to_chat(bot, chat_id: int, arxiv_id: str) -> None:
+    path = _paper_data_dir(arxiv_id) / "dialog-script.json"
+    if not path.exists():
+        return
+    preview = _format_dialog_preview(path)
+    header = f"📝 Naskah dialog — {arxiv_id}\n\n"
+    if len(header) + len(preview) <= 4000:
+        await bot.send_message(chat_id, header + preview)
+    else:
+        await bot.send_message(
+            chat_id,
+            f"📝 Naskah dialog — {arxiv_id} ({data_turns(path)} giliran). "
+            "Pratinjau panjang; file JSON dilampirkan.",
+        )
+    with path.open("rb") as f:
+        await bot.send_document(
+            chat_id,
+            document=f,
+            filename=f"dialog-{arxiv_id.replace('/', '_')}.json",
+            caption="dialog-script.json",
+        )
+
+
+def data_turns(path: Path) -> int:
+    try:
+        return len(json.loads(path.read_text(encoding="utf-8")).get("turns") or [])
+    except Exception:
+        return 0
+
+
+async def _send_video_to_chat(bot, chat_id: int, arxiv_id: str) -> None:
+    mp4 = ROOT / "output" / f"{arxiv_id.replace('/', '_')}.mp4"
+    if not mp4.exists():
+        await bot.send_message(
+            chat_id, f"⚠ Video tidak ditemukan: `{mp4.name}`", parse_mode="Markdown"
+        )
+        return
+    size_mb = mp4.stat().st_size / (1024 * 1024)
+    if size_mb > 48:
+        await bot.send_message(
+            chat_id,
+            f"🎬 Video selesai (`{mp4.name}`, {size_mb:.1f} MB) — "
+            "terlalu besar untuk dikirim via Telegram. Ambil dari server/VPS.",
+            parse_mode="Markdown",
+        )
+        return
+    await bot.send_message(chat_id, f"🎬 Mengunggah video… ({size_mb:.1f} MB)")
+    with mp4.open("rb") as f:
+        await bot.send_video(
+            chat_id,
+            video=f,
+            supports_streaming=True,
+            caption=f"{arxiv_id} — paper2video",
+            read_timeout=300,
+            write_timeout=300,
+        )
+
+
+def _line_for_telegram(line: str) -> str | None:
+    line = line.strip()
+    if not line or line.startswith("→ python"):
+        return None
+    if _PROGRESS_LINE.search(line):
+        return line[:500]
+    if line.startswith("=" * 10):
+        return None
+    return None
 
 
 def load_dotenv() -> None:
@@ -95,7 +210,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• `/e2e 1706.03762` — pipeline penuh (fetch→LLM→video)\n"
         "• `/e2e 1706.03762 upload` — + YouTube\n"
         "• `/e2e latest` — paper terbaru (RSS)\n"
-        "• `/status` — job terakhir\n"
+        "• Saat selesai: naskah dialog + file video dikirim ke chat\n"
+        "• `/status` — cuplikan log job (jalan atau selesai)\n"
         "• `/whoami` — Chat ID Anda",
         parse_mode="Markdown",
     )
@@ -160,23 +276,76 @@ async def _run_e2e_job(
     if force_llm:
         cmd.append("--force-llm")
 
+    mode = []
+    if latest:
+        mode.append("RSS")
+    if force_llm:
+        mode.append("force-llm")
+    if upload:
+        mode.append(f"upload→{os.environ.get('YOUTUBE_PRIVACY_DEFAULT', 'public')}")
+    mode_s = f" ({', '.join(mode)})" if mode else ""
+
     await bot.send_message(
         chat_id,
-        f"▶️ Memulai e2e `{label}`\nLog: `{log_path.relative_to(ROOT)}`\n"
-        "Proses bisa 15–40 menit. Saya kabari saat selesai.",
-        parse_mode="Markdown",
+        f"▶️ Pipeline: {label}{mode_s}\n"
+        "Progress + naskah dialog + video akan dikirim ke chat ini.",
     )
 
+    resolved_aid: str | None = None if latest else arxiv_id
+    dialog_sent = False
+
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    last_push = 0.0
     try:
         with open(log_path, "w", encoding="utf-8") as logf:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=str(ROOT),
                 env=env,
-                stdout=logf,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
+            assert proc.stdout is not None
+            while True:
+                raw = await proc.stdout.readline()
+                if not raw:
+                    break
+                text = raw.decode("utf-8", errors="replace")
+                logf.write(text)
+                logf.flush()
+                for line in text.splitlines():
+                    m = _PAPER_LINE.match(line.strip())
+                    if m:
+                        resolved_aid = normalize_arxiv_id(m.group(1))
+                    m = _PICKED_LINE.search(line)
+                    if m and not resolved_aid:
+                        resolved_aid = normalize_arxiv_id(m.group(1))
+
+                    if (
+                        not dialog_sent
+                        and resolved_aid
+                        and "dialog-script.json" in line
+                        and "✓" in line
+                    ):
+                        dialog_sent = True
+                        try:
+                            await _send_dialog_to_chat(bot, chat_id, resolved_aid)
+                        except Exception as e:
+                            await bot.send_message(
+                                chat_id, f"⚠ Gagal kirim naskah: {e}"
+                            )
+
+                    msg = _line_for_telegram(line)
+                    if not msg:
+                        continue
+                    now = time.monotonic()
+                    if now - last_push < 1.5 and not msg.startswith("["):
+                        continue
+                    last_push = now
+                    try:
+                        await bot.send_message(chat_id, f"▸ {label}\n{msg}")
+                    except Exception:
+                        pass
             code = await proc.wait()
     except Exception as e:
         await bot.send_message(chat_id, f"❌ Gagal menjalankan job: {e}")
@@ -189,34 +358,53 @@ async def _run_e2e_job(
         lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
         tail = "\n".join(lines[-25:])
 
-    if code == 0:
-        msg = f"✅ e2e selesai: `{label}`"
-        out = ROOT / "output" / f"{label.replace('/', '_')}.mp4"
-        if latest and code == 0:
-            msg += "\n(Cek folder output/ untuk file terbaru)"
-        elif out.exists():
-            msg += f"\n📁 `{out.relative_to(ROOT)}`"
-        pub = ROOT / "data" / label.replace("/", "_") / "youtube-publish.json"
-        if pub.exists():
-            import json
+    # Fallback: cari paper ID dari log jika latest
+    if not resolved_aid and log_path.exists():
+        for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = _PAPER_LINE.match(line.strip())
+            if m:
+                resolved_aid = normalize_arxiv_id(m.group(1))
+                break
+            m = _PICKED_LINE.search(line)
+            if m:
+                resolved_aid = normalize_arxiv_id(m.group(1))
+                break
 
+    final_aid = resolved_aid or label
+
+    if code == 0:
+        msg = f"✅ e2e selesai: `{final_aid}`"
+        if resolved_aid and not dialog_sent:
+            try:
+                await _send_dialog_to_chat(bot, chat_id, resolved_aid)
+            except Exception:
+                pass
+        pub = _paper_data_dir(final_aid) / "youtube-publish.json"
+        if pub.exists():
             data = json.loads(pub.read_text(encoding="utf-8"))
             if data.get("url"):
                 msg += f"\n📺 {data['url']}"
+        try:
+            await bot.send_message(chat_id, msg, parse_mode="Markdown")
+        except Exception:
+            await bot.send_message(chat_id, msg[:4000])
+        if resolved_aid:
+            try:
+                await _send_video_to_chat(bot, chat_id, resolved_aid)
+            except Exception as e:
+                await bot.send_message(chat_id, f"⚠ Gagal kirim video: {e}")
     else:
-        msg = f"❌ e2e gagal (exit {code}): `{label}`"
-
-    if tail:
-        snippet = tail[-3000:]
-        if len(msg) + len(snippet) < 4000:
-            msg += f"\n\n{snippet}"
-        else:
-            msg += f"\n\n(log penuh: {log_path.name})"
-
-    try:
-        await bot.send_message(chat_id, msg, parse_mode="Markdown")
-    except Exception:
-        await bot.send_message(chat_id, msg[:4000])
+        msg = f"❌ e2e gagal (exit {code}): `{final_aid}`"
+        if tail:
+            snippet = tail[-3000:]
+            if len(msg) + len(snippet) < 4000:
+                msg += f"\n\n{snippet}"
+            else:
+                msg += f"\n\n(log: {log_path.name})"
+        try:
+            await bot.send_message(chat_id, msg, parse_mode="Markdown")
+        except Exception:
+            await bot.send_message(chat_id, msg[:4000])
 
 
 async def cmd_e2e(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -242,17 +430,42 @@ async def cmd_e2e(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    _running.add(chat.id)
-    asyncio.create_task(
-        _run_e2e_job(
-            chat.id,
-            context.bot,
-            arxiv_id=arxiv_id,
-            upload=upload,
-            latest=latest,
-            force_llm=force_llm,
-        )
+    flags = []
+    if latest:
+        flags.append("latest")
+    if force_llm:
+        flags.append("force")
+    if upload:
+        flags.append("upload")
+    target = arxiv_id or "paper terbaru (RSS)"
+    await update.effective_message.reply_text(
+        f"✓ Perintah diterima: {target}"
+        + (f" [{', '.join(flags)}]" if flags else "")
+        + "\nJob dimulai…"
     )
+
+    async def _job_wrapper() -> None:
+        try:
+            await _run_e2e_job(
+                chat.id,
+                context.bot,
+                arxiv_id=arxiv_id,
+                upload=upload,
+                latest=latest,
+                force_llm=force_llm,
+            )
+        except Exception as e:
+            _running.discard(chat.id)
+            try:
+                await context.bot.send_message(
+                    chat.id, f"❌ Error bot: {e}"
+                )
+            except Exception:
+                pass
+            raise
+
+    _running.add(chat.id)
+    asyncio.create_task(_job_wrapper())
 
 
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -55,10 +55,19 @@ Atau pakai systemd: `deploy/vps/paper2video-telegram.service`
 | `/e2e 1706.03762` | Pipeline penuh A→E |
 | `/e2e 1706.03762 upload` | + upload YouTube |
 | `/e2e latest` | Paper terbaru (RSS) |
+| `/e2e latest force upload` | RSS + LLM ulang + YouTube |
 | `/e2e 1706.03762 force` | Regenerate LLM |
 | `/status` | Log job terakhir |
 
 Satu job per chat pada satu waktu. Durasi ~15–40 menit.
+
+Saat job berjalan, bot mengirim **update progress** ke chat (fetch, pilih paper dari RSS, langkah LLM A–F, render).
+
+Setelah langkah dialog selesai: **pratinjau naskah** (giliran Pak Nam & Zaba) + file `dialog-script.json`.
+
+Setelah render selesai: **file video MP4** dikirim ke chat (maks. ~48 MB; lebih besar hanya notifikasi path di server).
+
+`/status` — 15 baris terakhir log di `logs/telegram_e2e_*.log`.
 
 ## Keamanan
 

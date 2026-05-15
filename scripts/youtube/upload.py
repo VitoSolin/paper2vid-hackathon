@@ -21,6 +21,7 @@ from auth import get_credentials  # noqa: E402
 from metadata import (  # noqa: E402
     arxiv_id_from_dir,
     build_metadata,
+    build_minimal_description,
     resolve_paper_dir,
     resolve_video_path,
 )
@@ -38,25 +39,13 @@ def _require_google():
     return build, MediaFileUpload
 
 
-def upload_video(
+def _insert_video(
+    youtube,
+    MediaFileUpload,
     video_path: Path,
     meta: dict,
-    *,
     privacy: str,
-    dry_run: bool = False,
-) -> dict:
-    if dry_run:
-        return {
-            "dry_run": True,
-            "video_path": str(video_path),
-            "title": meta["title"],
-            "privacy": privacy,
-        }
-
-    build, MediaFileUpload = _require_google()
-    creds = get_credentials()
-    youtube = build("youtube", "v3", credentials=creds)
-
+):
     body = {
         "snippet": {
             "title": meta["title"],
@@ -71,26 +60,70 @@ def upload_video(
             "selfDeclaredMadeForKids": False,
         },
     }
-
     media = MediaFileUpload(
         str(video_path),
         mimetype="video/mp4",
         resumable=True,
         chunksize=8 * 1024 * 1024,
     )
-
     request = youtube.videos().insert(
         part="snippet,status",
         body=body,
         media_body=media,
     )
-
     response = None
     while response is None:
         status, response = request.next_chunk()
         if status:
             pct = int(status.progress() * 100)
             print(f"  upload {pct}%", flush=True)
+    return response
+
+
+def upload_video(
+    video_path: Path,
+    meta: dict,
+    *,
+    privacy: str,
+    dry_run: bool = False,
+    paper_dir: Path | None = None,
+) -> dict:
+    if dry_run:
+        return {
+            "dry_run": True,
+            "video_path": str(video_path),
+            "title": meta["title"],
+            "privacy": privacy,
+        }
+
+    build, MediaFileUpload = _require_google()
+    from googleapiclient.errors import HttpError
+
+    creds = get_credentials()
+    youtube = build("youtube", "v3", credentials=creds)
+
+    desc_mode = "full"
+    try:
+        response = _insert_video(
+            youtube, MediaFileUpload, video_path, meta, privacy
+        )
+    except HttpError as e:
+        err = str(e)
+        if paper_dir and "invalidDescription" in err:
+            print(
+                "  ⚠ Deskripsi ditolak YouTube — coba versi minimal…",
+                flush=True,
+            )
+            meta = {
+                **meta,
+                "description": build_minimal_description(paper_dir),
+            }
+            desc_mode = "minimal"
+            response = _insert_video(
+                youtube, MediaFileUpload, video_path, meta, privacy
+            )
+        else:
+            raise
 
     vid = response["id"]
     url = f"https://www.youtube.com/watch?v={vid}"
@@ -99,6 +132,7 @@ def upload_video(
         "url": url,
         "title": meta["title"],
         "privacy": privacy,
+        "description_mode": desc_mode,
     }
 
 
@@ -121,7 +155,13 @@ def publish_paper(
     print(f"Judul: {meta['title']}")
     print(f"Privacy: {priv}")
 
-    result = upload_video(video_path, meta, privacy=priv, dry_run=dry_run)
+    result = upload_video(
+        video_path,
+        meta,
+        privacy=priv,
+        dry_run=dry_run,
+        paper_dir=paper_dir,
+    )
     result["arxiv_id"] = arxiv_id
     result["video_path"] = str(video_path)
 
