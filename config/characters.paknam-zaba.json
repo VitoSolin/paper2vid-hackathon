@@ -7,6 +7,17 @@
     "paknam": {
       "label": "Pak Nam",
       "side": "right",
+      "layout": {
+        "height_ratio": 0.82,
+        "scale": 1.2,
+        "visible_body_ratio": 0.7,
+        "trim_alpha": true,
+        "anchor": "right",
+        "position_x_ratio": 1.0,
+        "offset_x": 56,
+        "offset_y": 48,
+        "allow_side_crop": true
+      },
       "background": "personA/bgpaknam.webp",
       "sprites": {
         "neutral": "personA/paknam_neutral.webp",
@@ -20,9 +31,19 @@
     },
     "zaba": {
       "label": "Zaba",
-      "side": "right",
+      "side": "left",
       "mirror": true,
-      "mirror_position": true,
+      "layout": {
+        "height_ratio": 0.82,
+        "scale": 1.2,
+        "visible_body_ratio": 0.7,
+        "trim_alpha": true,
+        "anchor": "left",
+        "position_x_ratio": 0.0,
+        "offset_x": -56,
+        "offset_y": 48,
+        "allow_side_crop": true
+      },
       "background": "personA/bgzaba.webp",
       "sprites": {
         "neutral": "personA/zaba_neutral.webp",
@@ -45,14 +66,17 @@
     "subtitle": { "z": 2, "position": "upper_center" }
   },
   "subtitle": {
-    "font_size": 52,
+    "font_file": "assets/fonts/LilitaOne-Regular.ttf",
+    "font_size": 56,
     "max_words_per_chunk": 5,
-    "margin_top_ratio": 0.22,
-    "max_width_ratio": 0.88,
+    "margin_top_ratio": 0.24,
+    "max_width_ratio": 0.8,
+    "safe_padding_px": 40,
+    "line_spacing": 0.22,
     "uppercase": true,
     "fill": "#FFFFFF",
-    "stroke": "#000000",
-    "stroke_width": 5
+    "stroke": "#1a1a1a",
+    "stroke_width": 6
   },
   "characters": {
     "height_ratio": 0.45,
