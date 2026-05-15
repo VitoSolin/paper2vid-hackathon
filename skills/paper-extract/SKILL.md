@@ -21,7 +21,7 @@ Jika belum ada, jalankan dulu **arxiv-fetch**.
    - `data/<arxiv_id>/abstract.txt`
    - `data/<arxiv_id>/paper.txt` — isi utama (jika ada)
 
-2. Baca title, abstract, dan teks PDF. Sintesis field berikut **dalam Bahasa Indonesia**, ringkas tapi substantif:
+2. Baca title, abstract, dan teks PDF. Headless memakai **RAG ringan** (`scripts/agent/rag_context.py`) untuk memilih cuplikan `paper.txt` paling relevan. Sintesis field berikut **dalam Bahasa Indonesia**, ringkas tapi substantif:
    - `problem`
    - `method`
    - `main_findings`
@@ -29,6 +29,8 @@ Jika belum ada, jalankan dulu **arxiv-fetch**.
    - `limitations`
 
 3. Tulis hasil ke `data/<arxiv_id>/paper-summary.json` mengikuti schema di `schemas/paper-summary.schema.json`.
+
+4. Panggil **paper-verify** sebelum dialog. Jika gagal, perbaiki field yang dilaporkan dan verifikasi lagi.
 
 ## Template output
 

@@ -15,6 +15,9 @@ from fetch_latest import fetch_candidate_ids, load_schedule  # noqa: E402
 from process_paper import process_one  # noqa: E402
 from state import load_state, save_state  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "scripts"))
+from arxiv_rate import wait_before_arxiv_request  # noqa: E402
+
 
 def main() -> None:
     sched = load_schedule()
@@ -27,7 +30,9 @@ def main() -> None:
     save_state(st)
 
     results = []
-    for arxiv_id in ids:
+    for i, arxiv_id in enumerate(ids):
+        if i > 0:
+            wait_before_arxiv_request(f"antara paper {i}/{len(ids)}")
         try:
             out = process_one(arxiv_id)
             results.append({"arxiv_id": arxiv_id, "ok": out is not None})

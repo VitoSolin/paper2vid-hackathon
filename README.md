@@ -1,161 +1,202 @@
 # paper2video
 
-Pipeline otomatis **arXiv → ringkasan paper → dialog Pak Nam & Zaba → video 9:16 → YouTube**, diorkestrasi [OpenClaw](https://github.com/openclaw/openclaw) (manual) atau cron di VPS (otomatis).
+Pipeline yang mengubah **paper arXiv** menjadi **video edukasi vertikal berbahasa Indonesia** — dari unduh PDF, ringkasan terstruktur, dialog dua karakter, render 9:16, sampai upload YouTube. Bisa dijalankan sekali lewat CLI, diorkestrasi [OpenClaw](https://github.com/openclaw/openclaw), atau dijadwalkan di VPS.
 
-## Alur
+Contoh hasil: `output/1706.03762.mp4` (paper *Attention Is All You Need*).
 
-```mermaid
-flowchart TB
-  A[arXiv] --> B[fetch + PDF]
-  B --> C[paper-summary]
-  C --> D[dialog-script]
-  D --> E[render 1080×1920]
-  E --> F[YouTube]
+---
+
+## Apa masalahnya?
+
+Paper di arXiv biasanya panjang, teknis, dan berbahasa Inggris. Banyak orang yang butuh intinya — mahasiswa, kreator edukasi, tim lab — tidak punya waktu membuat ringkasan plus skrip video sendiri. Di sisi lain, konten vertikal (Shorts/Reels) jarang langsung bersumber dari paper asli.
+
+**paper2video** menutup celah itu dengan alur otomatis:
+
+```
+arXiv → PDF & teks → ringkasan → dialog → video 1080×1920 → YouTube
 ```
 
-| Tahap | Perintah / skill | Output |
-|-------|------------------|--------|
-| Fetch | `arxiv-fetch`, `run_pipeline.py` | `data/<id>/metadata.json`, `paper.pdf`, `paper.txt` |
-| Ringkasan | `paper-extract` (agent / LLM) | `paper-summary.json` |
-| Dialog | `dialog-script` | `dialog-script.json` |
-| Video | `video-render` | `output/<id>.mp4` |
-| Upload | `youtube-publish` | `data/<id>/youtube-publish.json` |
+Input bisa ID paper (`1706.03762`), feed RSS kategori tertentu, atau perintah dari Telegram. Output: file MP4 siap unggah plus metadata di folder paper.
 
-## Video (Pak Nam & Zaba)
+---
 
-Format vertikal **1080×1920** (Shorts/Reels):
+## Format video: Pak Nam & Zaba
+
+Bukan monolog AI yang membacakan abstract. Dua persona berdialog:
+
+- **Zaba** — pemula, sering bertanya dan bingung  
+- **Pak Nam** — mentor, menjelaskan dengan analogi sederhana  
+
+Layout vertikal **1080×1920**: subtitle di atas, karakter aktif di tengah (`personA/*_up.png`), latar belakang berganti per pembicara. Ekspresi sprite (`neutral`, `laugh`, `thinking`, `confused`) dan animasi **wiggle** lewat ffmpeg. Suara per karakter via ElevenLabs (atau edge-tts gratis).
 
 ```
 ┌─────────────────────────┐
-│  SUBTITLE (atas)        │
-│                         │
-│      [pembicara aktif]  │  sprite `personA/*_up.png`
-│                         │
-│  ░░ background ░░░░░░░    │  bg per speaker (paknam / zaba)
+│  SUBTITLE               │
+│      [pembicara aktif]  │
+│  ░░ background ░░░░░░░   │
 └─────────────────────────┘
 ```
 
-- **Zaba** — pemula, banyak bertanya  
-- **Pak Nam** — mentor, penjelasan sederhana + analogi  
-- TTS: **ElevenLabs** (disarankan) atau edge-tts  
-- Animasi karakter: wiggle via ffmpeg (`config/characters.paknam-zaba.json`)
+Naskah dialog hanya boleh mengembangkan isi `paper-summary.json` — tidak menambah klaim di luar sumber paper. Contoh referensi: `examples/dialog-script.1706.03762.json`.
 
-## Setup lokal
+---
 
-### Prasyarat
+## Agen & perilaku otonom
 
-- Python 3.10+
-- [ffmpeg](https://ffmpeg.org/)
-- Node.js 22+ — hanya jika pakai OpenClaw interaktif
+Pipeline dibagi peran yang jelas. Masing-masing punya skill OpenClaw di folder `skills/` dan instruksi di `AGENTS.md`.
+
+```mermaid
+flowchart LR
+  F[fetch] --> E[ekstrak + RAG]
+  E --> V{verifikasi}
+  V -->|perlu perbaikan| E
+  V --> W[dialog]
+  W --> R[render]
+  R --> Y[YouTube]
+```
+
+| Peran | Output utama |
+|-------|----------------|
+| Fetch | `metadata.json`, `paper.pdf`, `paper.txt` |
+| Ekstrak | `paper-summary.json` |
+| Verifikasi | QA ringkasan; minta ulang jika tidak lolos |
+| Dialog | `dialog-script.json` |
+| Render | `output/<arxiv_id>.mp4` |
+| Publish | `youtube-publish.json` |
+
+**Ekstraksi** memakai cuplikan `paper.txt` yang dipilih relevan (`scripts/agent/rag_context.py`), bukan sekadar memotong dari awal file.
+
+**Verifikasi** mengecek kelengkapan field, keselarasan dengan abstract, dan konsistensi `sources` (`scripts/agent/verify_summary.py`). Jika gagal, ekstraksi dijalankan ulang dengan daftar perbaikan — maksimal dua kali — sebelum dialog dibuat.
+
+**Log** setiap langkah agent disimpan di `data/<arxiv_id>/agent-run.jsonl`, misalnya:
+
+```json
+{"agent":"extractor","action":"start_extract","status":"running"}
+{"agent":"verifier","action":"verify_summary","status":"ok"}
+{"agent":"writer","action":"finish_dialog","status":"ok","detail":{"turns":12}}
+```
+
+Dengan OpenClaw, satu perintah bisa mengorkestrasi seluruh alur; agent memilih skill yang sesuai (`orchestrate-paper`, `paper-extract`, `paper-verify`, dll.):
 
 ```bash
-chmod +x setup.sh
-./setup.sh          # venv + pip install (butuh python3-venv di Ubuntu)
+export PAPER2VIDEO_USE_OPENCLAW=1
+openclaw agent --message "Orkestrasi paper 1706.03762: fetch, extract, verify, dialog, render"
+```
+
+Penanganan situasi yang sering muncul: rate limit arXiv (RSS + jeda antar-request), PDF tidak terbaca (fallback ke abstract), paper duplikat di VPS (state), OAuth YouTube kedaluwarsa ([docs/YOUTUBE.md](docs/YOUTUBE.md)).
+
+---
+
+## Implementasi teknis
+
+| Lapisan | Detail |
+|---------|--------|
+| Fetch | `scripts/run_pipeline.py`, RSS di `scripts/arxiv_rss.py` |
+| LLM | `scripts/daily/llm.py` — Anthropic, OpenAI, DeepSeek, atau OpenCode |
+| Output terstruktur | Schema di `schemas/`, JSON ringkasan & dialog |
+| Video | `scripts/video/render.py`, wiggle via `ffmpeg_wiggle.py` |
+| TTS | ElevenLabs / edge-tts, cache audio per giliran |
+
+Struktur repo:
+
+```
+config/           # karakter, jadwal, YouTube
+scripts/agent/    # RAG, verifikasi, log
+scripts/daily/    # job cron VPS
+scripts/video/
+skills/           # skill OpenClaw
+data/<arxiv_id>/  # artefak per paper
+output/           # MP4
+```
+
+Perintah yang sering dipakai:
+
+```bash
+python scripts/run_pipeline.py 1706.03762
+python scripts/run_e2e.py 1706.03762              # fetch → LLM → render
+python scripts/run_e2e.py 1706.03762 --upload      # + YouTube
+python scripts/video/render.py data/1706.03762
+python scripts/agent/verify_summary.py 1706.03762
+```
+
+Provider LLM & API key: [docs/LLM.md](docs/LLM.md). TTS: [docs/ELEVENLABS.md](docs/ELEVENLABS.md).
+
+---
+
+## Menjalankan di lokal
+
+**Prasyarat:** Python 3.10+, [ffmpeg](https://ffmpeg.org/). Node.js 22+ hanya jika memakai OpenClaw interaktif.
+
+```bash
+chmod +x setup.sh && ./setup.sh
 source .venv/bin/activate
 cp .env.example .env
 ```
 
-Isi `.env`:
+Isi minimal di `.env`: `LLM_PROVIDER` + API key, `ELEVENLABS_API_KEY` (atau `TTS_PROVIDER=edge`).
 
-| Variabel | Untuk |
-|----------|--------|
-| `ELEVENLABS_API_KEY` | TTS suara Pak Nam & Zaba |
-| `ANTHROPIC_API_KEY` | Ringkasan + dialog otomatis (VPS / headless) |
-| `TTS_PROVIDER` | `elevenlabs` atau `edge` |
-
-Detail TTS: [docs/ELEVENLABS.md](docs/ELEVENLABS.md)
-
-### Satu paper (manual)
+Langkah manual per paper:
 
 ```bash
-# 1. Unduh paper
 python scripts/run_pipeline.py 1706.03762
-
-# 2. Ringkasan + dialog (OpenClaw)
-openclaw config set agents.defaults.workspace "$(pwd)"
-openclaw agent --message "Ekstrak paper 1706.03762 ke paper-summary.json"
-openclaw agent --message "Buat dialog Pak Nam dan Zaba untuk paper 1706.03762"
-
-# 3. Render video
-python scripts/video/render.py data/1706.03762
-
-# 4. Upload YouTube (OAuth sekali — docs/YOUTUBE.md)
-python scripts/youtube/auth.py
-python scripts/youtube/upload.py data/1706.03762 --privacy public
+# lalu OpenClaw atau otomatis lewat run_e2e:
+python scripts/run_e2e.py 1706.03762 --force-llm
 ```
 
-Contoh dialog siap pakai: `examples/dialog-script.1706.03762.json` → salin ke `data/1706.03762/`.
+Upload YouTube (OAuth sekali): [docs/YOUTUBE.md](docs/YOUTUBE.md).
 
-### OpenClaw skills
+---
+
+## Produksi & deploy
+
+Instalasi server dan cron: [docs/VPS.md](docs/VPS.md) · `deploy/vps/install.sh`.
+
+Jadwal default (WIB, `config/schedule.json`):
+
+| Waktu | Aktivitas |
+|-------|-----------|
+| 07:00 | Proses 3 paper baru dari arXiv (cs.CL, cs.LG, cs.AI, stat.ML) |
+| 09:00, 14:00, 20:00 | Upload 1 video dari antrian |
+
+```bash
+./scripts/daily/run_cron.sh morning
+./scripts/daily/run_cron.sh upload
+```
+
+Trigger manual dari Telegram: [docs/TELEGRAM.md](docs/TELEGRAM.md) — misalnya `/e2e 1706.03762` atau `/e2e latest upload`.
+
+---
+
+## OpenClaw skills
 
 | Skill | Fungsi |
 |-------|--------|
-| `arxiv-fetch` | Unduh dari arXiv |
-| `paper-extract` | Problem, metode, temuan, pentingnya, batasan |
-| `dialog-script` | Naskah Pak Nam ↔ Zaba |
-| `video-render` | Video berlapis + TTS |
-| `youtube-publish` | Upload ke YouTube |
+| `orchestrate-paper` | Alur penuh |
+| `arxiv-fetch` | Unduh paper |
+| `paper-extract` | Ringkasan terstruktur |
+| `paper-verify` | QA ringkasan |
+| `dialog-script` | Naskah Pak Nam & Zaba |
+| `video-render` | Render + TTS |
+| `youtube-publish` | Upload |
+| `telegram-trigger` | Perintah dari bot |
 
-Workspace: `AGENTS.md`, `SOUL.md`, `TOOLS.md`.
+Workspace agent: `AGENTS.md`, `SOUL.md`, `TOOLS.md`.
 
-## Otomasi harian (VPS)
-
-Jadwal default (**WIB**, `config/schedule.json`):
-
-| Waktu | Job |
-|-------|-----|
-| 07:00 | Ambil **3** paper arXiv terbaru (cs.CL, cs.LG, cs.AI, stat.ML) → proses penuh |
-| 09:00, 14:00, 20:00 | Upload **1** video per slot dari antrian |
-
-```bash
-./scripts/daily/run_cron.sh morning   # uji proses 3 paper
-./scripts/daily/run_cron.sh upload    # uji upload 1 video
-```
-
-Deploy & cron: [docs/VPS.md](docs/VPS.md) · Install: `deploy/vps/install.sh`
-
-## Struktur repo
-
-```
-config/
-  characters.paknam-zaba.json   # layout, TTS, wiggle, sprite
-  schedule.json                 # jadwal VPS
-personA/                        # background + sprite *_up.png
-scripts/
-  fetch_arxiv.py
-  video/render.py
-  youtube/upload.py
-  daily/                        # morning_job, upload_job
-skills/                         # prompt OpenClaw
-data/<arxiv_id>/                # artefak per paper (gitignored)
-output/<arxiv_id>.mp4
-```
+---
 
 ## Dokumentasi
 
 | Dokumen | Isi |
 |---------|-----|
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Status fitur & perintah ringkas |
-| [docs/YOUTUBE.md](docs/YOUTUBE.md) | OAuth & upload API |
-| [docs/VPS.md](docs/VPS.md) | Cron, SSH, deploy server |
-| [docs/ELEVENLABS.md](docs/ELEVENLABS.md) | Voice ID & kuota TTS |
+| [docs/VPS.md](docs/VPS.md) | Cron & deploy server |
+| [docs/YOUTUBE.md](docs/YOUTUBE.md) | OAuth & upload |
+| [docs/TELEGRAM.md](docs/TELEGRAM.md) | Bot Telegram |
+| [docs/LLM.md](docs/LLM.md) | Provider LLM |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Status fitur |
 
-## Keamanan (Git)
+Jangan commit `.env`, secret YouTube, `data/*/`, atau `output/*.mp4` — sudah di `.gitignore`.
 
-Jangan commit:
-
-- `.env`
-- `config/youtube/client_secret.json`, `token.json`
-- `data/*/` (kecuali contoh), `output/*.mp4`
-
-Sudah tercantum di `.gitignore`.
-
-## Persyaratan ringkas
-
-- **ffmpeg** — encode video & wiggle  
-- **ElevenLabs** — TTS natural (opsional: edge-tts gratis)  
-- **Anthropic** — LLM untuk job harian di VPS  
-- **YouTube Data API v3** — upload (OAuth desktop)  
+---
 
 ## Lisensi
 

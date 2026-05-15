@@ -12,6 +12,8 @@ from pathlib import Path
 import arxiv
 import requests
 
+from arxiv_rate import arxiv_search_results, wait_before_arxiv_request
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 
@@ -34,13 +36,25 @@ def paper_dir(arxiv_id: str) -> Path:
     return DATA_DIR / safe
 
 
-def fetch(arxiv_id: str, download_pdf: bool = True) -> Path:
+def fetch(arxiv_id: str, download_pdf: bool = True, *, force: bool = False) -> Path:
     arxiv_id = normalize_arxiv_id(arxiv_id)
     out = paper_dir(arxiv_id)
     out.mkdir(parents=True, exist_ok=True)
 
-    client = arxiv.Client()
-    results = list(client.results(arxiv.Search(id_list=[arxiv_id])))
+    pdf_ok = (out / "paper.pdf").exists()
+    meta_ok = (out / "metadata.json").exists()
+    if not force and meta_ok and (not download_pdf or pdf_ok):
+        print(
+            f"Skip fetch — data sudah ada di {out.relative_to(ROOT)}",
+            flush=True,
+        )
+        return out
+
+    print("Memanggil arXiv API…", flush=True)
+    results = arxiv_search_results(
+        arxiv.Search(id_list=[arxiv_id]),
+        label=f"fetch {arxiv_id}",
+    )
     if not results:
         raise SystemExit(f"Paper tidak ditemukan: {arxiv_id}")
 
@@ -64,7 +78,12 @@ def fetch(arxiv_id: str, download_pdf: bool = True) -> Path:
     if download_pdf:
         pdf_path = out / "paper.pdf"
         if not pdf_path.exists():
-            resp = requests.get(p.pdf_url, timeout=120)
+            wait_before_arxiv_request(f"pdf {arxiv_id}")
+            resp = requests.get(
+                p.pdf_url,
+                timeout=120,
+                headers={"User-Agent": "paper2video/1.0"},
+            )
             resp.raise_for_status()
             pdf_path.write_bytes(resp.content)
         meta["pdf_path"] = str(pdf_path.relative_to(ROOT))
@@ -81,9 +100,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch arXiv paper")
     parser.add_argument("arxiv_id", help="e.g. 2301.07041 or https://arxiv.org/abs/...")
     parser.add_argument("--no-pdf", action="store_true", help="Skip PDF download")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Paksa fetch ulang meski file sudah ada",
+    )
     args = parser.parse_args()
     try:
-        fetch(args.arxiv_id, download_pdf=not args.no_pdf)
+        fetch(args.arxiv_id, download_pdf=not args.no_pdf, force=args.force)
     except Exception as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

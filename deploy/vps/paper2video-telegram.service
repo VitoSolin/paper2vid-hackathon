@@ -1,0 +1,15 @@
+[Unit]
+Description=paper2video Telegram bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/paper2video
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/paper2video/.venv/bin/python scripts/telegram_bot.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

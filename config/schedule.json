@@ -11,6 +11,9 @@
     { "hour": 20, "minute": 0 }
   ],
   "arxiv": {
+    "discover": "rss",
+    "rss_categories": ["cs.LG", "cs.CL", "cs.AI", "stat.ML"],
+    "request_interval_sec": 3,
     "query": "cat:cs.CL OR cat:cs.LG OR cat:cs.AI OR cat:stat.ML",
     "max_scan": 25
   },
@@ -18,7 +21,8 @@
     "privacy": "public"
   },
   "llm": {
-    "provider": "anthropic",
-    "model": "claude-sonnet-4-20250514"
+    "provider": "opencode",
+    "model": "deepseek-v4-flash",
+    "base_url": "https://opencode.ai/zen/go/v1"
   }
 }
