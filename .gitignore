@@ -24,3 +24,5 @@ output/*
 # Cache editor
 .cursor/
 *.log
+
+# personA/ dan personB/ — aset karakter (di-commit)

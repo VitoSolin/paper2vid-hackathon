@@ -102,20 +102,42 @@ def _draw_subtitle(
 
 def render_frame(
     background: Image.Image,
+    sprites: dict[str, Image.Image],
+    subtitle: str,
+    active_speaker: str | None,
+    cfg: dict[str, Any],
+) -> Image.Image:
+    """sprites: {speaker_id: Image} — mis. paknam, zaba."""
+    w = cfg.get("width", 1080)
+    h = cfg.get("height", 1920)
+    cast = cfg.get("cast", {})
+
+    frame = _cover_resize(background, w, h).convert("RGBA")
+    for sid, sprite in sprites.items():
+        side = cast.get(sid, {}).get("side")
+        if not side:
+            side = "left" if sid in ("A", "paknam") else "right"
+        is_active = active_speaker == sid
+        _place_character(frame, sprite, side, is_active, cfg)
+
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    _draw_subtitle(draw, subtitle, w, cfg)
+    return Image.alpha_composite(frame, overlay).convert("RGB")
+
+
+def render_frame_legacy(
+    background: Image.Image,
     char_a: Image.Image,
     char_b: Image.Image,
     subtitle: str,
     active_speaker: str | None,
     cfg: dict[str, Any],
 ) -> Image.Image:
-    w = cfg.get("width", 1080)
-    h = cfg.get("height", 1920)
-
-    frame = _cover_resize(background, w, h).convert("RGBA")
-    _place_character(frame, char_a, "left", active_speaker == "A", cfg)
-    _place_character(frame, char_b, "right", active_speaker == "B", cfg)
-
-    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    _draw_subtitle(draw, subtitle, w, cfg)
-    return Image.alpha_composite(frame, overlay).convert("RGB")
+    return render_frame(
+        background,
+        {"A": char_a, "B": char_b},
+        subtitle,
+        active_speaker,
+        cfg,
+    )

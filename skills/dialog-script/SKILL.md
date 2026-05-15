@@ -12,10 +12,12 @@ Buat **naskah dialog** antara dua pembicara dari `paper-summary.json`. Setelah s
 
 `data/<arxiv_id>/paper-summary.json` harus sudah ada (skill **paper-extract**).
 
-## Persona
+## Persona (Pak Nam & Zaba)
 
-- **A (Host)** — penasaran, bertanya singkat, audiens umum.
-- **B (Ahli)** — menjelaskan dengan analogi, tidak terlalu jargon.
+- **paknam** — penasaran, bertanya singkat, audiens umum.
+- **zaba** — menjelaskan dengan analogi, tidak terlalu jargon.
+
+Alias lama `A`/`B` masih diterima (A=paknam, B=zaba).
 
 ## Langkah
 
@@ -33,10 +35,10 @@ Buat **naskah dialog** antara dua pembicara dari `paper-summary.json`. Setelah s
 {
   "arxiv_id": "...",
   "title": "...",
-  "speakers": { "A": "Host", "B": "Ahli" },
+  "speakers": { "paknam": "Pak Nam", "zaba": "Zaba" },
   "turns": [
-    { "speaker": "A", "text": "..." },
-    { "speaker": "B", "text": "..." }
+    { "speaker": "paknam", "text": "...", "expression": "neutral" },
+    { "speaker": "zaba", "text": "...", "expression": "thinking" }
   ],
   "estimated_duration_sec": 180,
   "notes": "Siap untuk video-render"

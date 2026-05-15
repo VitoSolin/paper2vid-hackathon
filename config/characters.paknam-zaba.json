@@ -1,0 +1,61 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "format": "vertical_short",
+  "cast": {
+    "paknam": {
+      "label": "Pak Nam",
+      "side": "left",
+      "background": "personA/bgpaknam.webp",
+      "sprites": {
+        "neutral": "personA/paknam_neutral.png",
+        "laugh": "personA/paknam_laugh.png",
+        "thinking": "personA/paknam_thinking.png"
+      },
+      "default_expression": "neutral"
+    },
+    "zaba": {
+      "label": "Zaba",
+      "side": "right",
+      "background": "personA/bgzaba.webp",
+      "sprites": {
+        "neutral": "personA/zaba_neutral.png",
+        "laugh": "personA/zaba_laugh.png",
+        "thinking": "personA/zaba_think.png",
+        "confused": "personA/zaba_confused.png"
+      },
+      "default_expression": "neutral"
+    }
+  },
+  "speaker_aliases": {
+    "A": "paknam",
+    "B": "zaba",
+    "PAKNAM": "paknam",
+    "ZABA": "zaba"
+  },
+  "layers": {
+    "background": { "z": 0, "fit": "cover", "per_speaker": true },
+    "characters": { "z": 1, "layout": "bottom_split" },
+    "subtitle": { "z": 2, "position": "top", "margin_top": 72 }
+  },
+  "subtitle": {
+    "font_size": 48,
+    "max_width_ratio": 0.9,
+    "uppercase": true,
+    "fill": "#FFFFFF",
+    "stroke": "#000000",
+    "stroke_width": 5
+  },
+  "characters": {
+    "height_ratio": 0.45,
+    "active_scale": 1.0,
+    "inactive_scale": 0.9,
+    "inactive_opacity": 0.45,
+    "margin_bottom": 40
+  },
+  "tts": {
+    "paknam": { "voice": "id-ID-ArdiNeural", "rate": "+0%" },
+    "zaba": { "voice": "id-ID-GadisNeural", "rate": "+0%" }
+  }
+}
