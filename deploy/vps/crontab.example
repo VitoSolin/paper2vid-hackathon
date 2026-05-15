@@ -1,0 +1,10 @@
+# paper2video — paste dengan: crontab -e
+# Timezone: set TZ di run_cron.sh (default Asia/Jakarta)
+
+# 07:00 — fetch 3 paper arXiv + proses (fetch, LLM, render)
+0 7 * * * /home/ubuntu/paper2video/scripts/daily/run_cron.sh morning
+
+# 09:00, 14:00, 20:00 — upload 1 video dari antrian
+0 9 * * * /home/ubuntu/paper2video/scripts/daily/run_cron.sh upload
+0 14 * * * /home/ubuntu/paper2video/scripts/daily/run_cron.sh upload
+0 20 * * * /home/ubuntu/paper2video/scripts/daily/run_cron.sh upload

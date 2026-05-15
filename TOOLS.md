@@ -10,6 +10,8 @@
 | `python scripts/video/render.py data/<id>` | Render video berlapis + TTS |
 | `python scripts/youtube/auth.py` | Login OAuth YouTube (sekali) |
 | `python scripts/youtube/upload.py data/<id>` | Upload ke YouTube |
+| `./scripts/daily/run_cron.sh morning` | Otomasi: 3 paper baru + render |
+| `./scripts/daily/run_cron.sh upload` | Otomasi: upload 1 dari antrian |
 
 ## OpenClaw
 

@@ -32,5 +32,9 @@ output/*
 # Cache editor
 .cursor/
 *.log
+logs/
+
+# Jadwal otomatis (state lokal VPS)
+data/.schedule/
 
 # personA/ dan personB/ — aset karakter (di-commit)
