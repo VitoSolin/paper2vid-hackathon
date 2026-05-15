@@ -213,6 +213,7 @@ def render_dialog(
     with tempfile.TemporaryDirectory(prefix="p2v_") as tmp:
         tmp_path = Path(tmp)
         segments: list[Path] = []
+        global_wiggle_t = 0.0
 
         for i, turn in enumerate(dialog.get("turns", [])):
             if cast_mode:
@@ -290,6 +291,7 @@ def render_dialog(
                         prepared.base_y,
                         fps=out_fps,
                         audio_start=audio_start,
+                        time_offset=global_wiggle_t,
                     )
                 elif wiggle_on:
                     side = (
@@ -306,7 +308,12 @@ def render_dialog(
                     frames_dir.mkdir(exist_ok=True)
                     for fi in range(n_frames):
                         t = fi / anim_fps
-                        wig = wiggle_offsets(t, wiggle_cfg, phase=wiggle_phase)
+                        wig = wiggle_offsets(
+                            t,
+                            wiggle_cfg,
+                            phase=wiggle_phase,
+                            time_offset=global_wiggle_t,
+                        )
                         frame = composite_wiggle_frame(base_rgba, prepared, wig)
                         frame.save(
                             frames_dir / f"frame_{fi:04d}.png",
@@ -340,6 +347,7 @@ def render_dialog(
                         audio_start=audio_start,
                     )
                 segments.append(seg_path)
+                global_wiggle_t += chunk_dur
 
         print(f"Concat {len(segments)} segments…", flush=True)
 

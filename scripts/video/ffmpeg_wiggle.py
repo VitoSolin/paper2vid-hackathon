@@ -14,9 +14,10 @@ def build_wiggle_filter(
     phase: float,
     base_x: float,
     base_y: float,
+    time_offset: float = 0.0,
 ) -> str:
     x_expr, y_expr = ffmpeg_overlay_expressions(
-        wiggle_cfg, phase, base_x, base_y
+        wiggle_cfg, phase, base_x, base_y, time_offset=time_offset
     )
     return (
         f"[1:v]format=rgba[char];"
@@ -36,8 +37,11 @@ def make_segment_wiggle_ffmpeg(
     base_y: float,
     fps: int = 30,
     audio_start: float = 0.0,
+    time_offset: float = 0.0,
 ) -> None:
-    filt = build_wiggle_filter(wiggle_cfg, phase, base_x, base_y)
+    filt = build_wiggle_filter(
+        wiggle_cfg, phase, base_x, base_y, time_offset=time_offset
+    )
     dur = f"{duration:.3f}"
     cmd = [
         "ffmpeg",

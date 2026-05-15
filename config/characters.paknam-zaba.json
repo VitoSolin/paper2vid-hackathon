@@ -90,10 +90,10 @@
       "enabled": true,
       "method": "ffmpeg",
       "fps": 12,
-      "amplitude_x": 6,
-      "amplitude_y": 5,
-      "amplitude_rot": 0.8,
-      "frequency_hz": 1.0
+      "amplitude_x": 3,
+      "amplitude_y": 3,
+      "amplitude_rot": 0.5,
+      "frequency_hz": 0.55
     }
   },
   "tts": {
